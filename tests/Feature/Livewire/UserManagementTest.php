@@ -5,11 +5,8 @@ use App\Models\Desa;
 use App\Models\Kecamatan;
 use App\Models\User;
 use Database\Seeders\WilayahSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
-
-uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(WilayahSeeder::class);

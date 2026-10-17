@@ -8,10 +8,7 @@ use App\Models\PusProfile;
 use App\Models\Screening;
 use App\Models\User;
 use Database\Seeders\WilayahSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
-
-uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(WilayahSeeder::class);

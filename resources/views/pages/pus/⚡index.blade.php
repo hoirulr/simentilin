@@ -29,6 +29,10 @@ new class extends Component
 
     // Modal state
     public bool $showCreateModal = false;
+    public bool $showEditModal = false;
+    public bool $showDetailModal = false;
+    public ?int $editing_pus_id = null;
+    public ?int $detail_pus_id = null;
 
     // Form inputs for creating PUS
     public string $nama_istri = '';
@@ -39,6 +43,16 @@ new class extends Component
     public ?int $new_desa_id = null;
     public string $rt_rw = '';
     public string $alamat = '';
+
+    // Form inputs for editing PUS
+    public string $edit_nama_istri = '';
+    public string $edit_nama_suami = '';
+    public string $edit_tanggal_lahir_istri = '';
+    public int $edit_jumlah_anak_lahir_hidup = 0;
+    public ?int $edit_kecamatan_id = null;
+    public ?int $edit_desa_id = null;
+    public string $edit_rt_rw = '';
+    public string $edit_alamat = '';
 
     public function mount(): void
     {
@@ -148,9 +162,87 @@ new class extends Component
         session()->flash('success', "Profil PUS Ny. {$pus->nama_istri} berhasil didaftarkan! Silakan lanjutkan skrining 5 indikator.");
     }
 
+    public function openEditModal(int $id): void
+    {
+        $this->resetValidation();
+        $pus = PusProfile::forCurrentUser()->findOrFail($id);
+        $this->authorize('update', $pus);
+
+        $this->editing_pus_id = $pus->id;
+        $this->edit_nama_istri = $pus->nama_istri;
+        $this->edit_nama_suami = $pus->nama_suami;
+        $this->edit_tanggal_lahir_istri = $pus->tanggal_lahir_istri ? $pus->tanggal_lahir_istri->format('Y-m-d') : '';
+        $this->edit_jumlah_anak_lahir_hidup = $pus->jumlah_anak_lahir_hidup;
+        $this->edit_kecamatan_id = $pus->kecamatan_id;
+        $this->edit_desa_id = $pus->desa_id;
+        $this->edit_rt_rw = $pus->rt_rw ?? '';
+        $this->edit_alamat = $pus->alamat ?? '';
+        $this->showEditModal = true;
+    }
+
+    public function updatedEditKecamatanId(): void
+    {
+        $this->edit_desa_id = null;
+    }
+
+    public function updatePus(): void
+    {
+        $validated = $this->validate([
+            'edit_nama_istri' => 'required|string|max:150',
+            'edit_nama_suami' => 'required|string|max:150',
+            'edit_tanggal_lahir_istri' => 'required|date|before:today',
+            'edit_jumlah_anak_lahir_hidup' => 'required|integer|min:0|max:20',
+            'edit_kecamatan_id' => 'required|exists:kecamatans,id',
+            'edit_desa_id' => 'required|exists:desas,id',
+            'edit_rt_rw' => 'nullable|string|max:50',
+            'edit_alamat' => 'nullable|string|max:500',
+        ], [
+            'edit_nama_istri.required' => 'Nama istri wajib diisi.',
+            'edit_nama_suami.required' => 'Nama suami wajib diisi.',
+            'edit_tanggal_lahir_istri.required' => 'Tanggal lahir istri wajib diisi.',
+            'edit_kecamatan_id.required' => 'Kecamatan wajib dipilih.',
+            'edit_desa_id.required' => 'Desa wajib dipilih.',
+        ]);
+
+        $pus = PusProfile::forCurrentUser()->findOrFail($this->editing_pus_id);
+        $this->authorize('update', $pus);
+
+        $pus->update([
+            'nama_istri' => $validated['edit_nama_istri'],
+            'nama_suami' => $validated['edit_nama_suami'],
+            'tanggal_lahir_istri' => $validated['edit_tanggal_lahir_istri'],
+            'jumlah_anak_lahir_hidup' => $validated['edit_jumlah_anak_lahir_hidup'],
+            'kecamatan_id' => $validated['edit_kecamatan_id'],
+            'desa_id' => $validated['edit_desa_id'],
+            'rt_rw' => $validated['edit_rt_rw'],
+            'alamat' => $validated['edit_alamat'],
+        ]);
+
+        $this->showEditModal = false;
+        $this->editing_pus_id = null;
+        session()->flash('success', "Profil PUS Ny. {$pus->nama_istri} berhasil diperbarui!");
+    }
+
+    public function openDetailModal(int $id): void
+    {
+        $pus = PusProfile::forCurrentUser()->findOrFail($id);
+        $this->authorize('view', $pus);
+
+        $this->detail_pus_id = $id;
+        $this->showDetailModal = true;
+    }
+
+    public function closeDetailModal(): void
+    {
+        $this->showDetailModal = false;
+        $this->detail_pus_id = null;
+    }
+
     public function deletePus(int $id): void
     {
         $pus = PusProfile::forCurrentUser()->findOrFail($id);
+        $this->authorize('delete', $pus);
+
         $pus->delete();
         session()->flash('success', "Data profil PUS berhasil dihapus.");
     }
@@ -162,7 +254,7 @@ new class extends Component
 
         $query = PusProfile::query()
             ->forCurrentUser($user)
-            ->with(['kecamatan', 'desa', 'screenings' => fn ($q) => $q->latest('tanggal_skrining')]);
+            ->with(['kecamatan', 'desa', 'latestScreening']);
 
         // Search
         if ($this->search !== '') {
@@ -232,6 +324,22 @@ new class extends Component
             ? Desa::where('kecamatan_id', $this->new_kecamatan_id)->orderBy('name')->get()
             : collect();
 
+        $editModalDesas = $this->edit_kecamatan_id
+            ? Desa::where('kecamatan_id', $this->edit_kecamatan_id)->orderBy('name')->get()
+            : collect();
+
+        $detailPus = null;
+        if ($this->showDetailModal && $this->detail_pus_id) {
+            $detailPus = PusProfile::forCurrentUser()
+                ->with([
+                    'kecamatan',
+                    'desa',
+                    'user',
+                    'screenings' => fn ($q) => $q->with('interventions.user')->orderByDesc('tanggal_skrining'),
+                ])
+                ->find($this->detail_pus_id);
+        }
+
         return compact(
             'pusList',
             'totalPus',
@@ -241,6 +349,8 @@ new class extends Component
             'kecamatans',
             'desas',
             'modalDesas',
+            'editModalDesas',
+            'detailPus',
             'calculator'
         );
     }
@@ -483,7 +593,7 @@ new class extends Component
                         @php
                             $usia = $pus->usiaIstri();
                             $isMupar = $calculator->determineMupar($usia, $pus->jumlah_anak_lahir_hidup);
-                            $latestScreening = $pus->screenings->first();
+                            $latestScreening = $pus->latestScreening;
                         @endphp
                         <tr wire:key="pus-{{ $pus->id }}" class="hover:bg-slate-50/60 dark:hover:bg-slate-750 transition">
                             <!-- Pasangan PUS -->
@@ -575,9 +685,22 @@ new class extends Component
 
                             <!-- Aksi -->
                             <td class="px-5 py-4 text-right whitespace-nowrap">
-                                <div class="flex items-center justify-end gap-2">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <!-- Detail / Riwayat Button -->
+                                    <button wire:click="openDetailModal({{ $pus->id }})"
+                                            type="button"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 dark:text-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition"
+                                            title="Lihat Detail & Riwayat Skrining">
+                                        <svg class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        <span>Detail</span>
+                                    </button>
+
+                                    <!-- Skrining Button -->
                                     <a href="/screening/create?pus_id={{ $pus->id }}" wire:navigate
-                                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#008060] hover:bg-[#006e52] shadow-xs transition"
+                                       class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#008060] hover:bg-[#006e52] shadow-xs transition"
                                        title="Mulai skrining 5 indikator">
                                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
@@ -585,6 +708,17 @@ new class extends Component
                                         <span>Skrining</span>
                                     </a>
 
+                                    <!-- Edit Button -->
+                                    <button wire:click="openEditModal({{ $pus->id }})"
+                                            type="button"
+                                            class="p-1.5 text-slate-500 hover:text-[#008060] dark:text-slate-400 dark:hover:text-emerald-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                                            title="Edit Profil PUS">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+
+                                    <!-- Delete Button -->
                                     <button wire:click="deletePus({{ $pus->id }})"
                                             wire:confirm="Yakin ingin menghapus profil PUS Ny. {{ $pus->nama_istri }}?"
                                             type="button"
@@ -824,6 +958,418 @@ new class extends Component
                         </button>
                     </div>
                 </form>
+
+            </div>
+        </div>
+    @endif
+
+    <!-- ════════════════════════════════════════════════════════════
+         MODAL EDIT PROFIL PUS (Z-Index Tinggi, Tepat Di Tengah)
+         ════════════════════════════════════════════════════════════ -->
+    @if($showEditModal)
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[999999]"
+             x-data @keydown.escape.window="$wire.set('showEditModal', false)">
+            <div class="w-full max-w-xl bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden transform transition-all my-auto max-h-[90vh] flex flex-col">
+                
+                <!-- Modal Header -->
+                <div class="px-6 py-5 bg-gradient-to-r from-slate-900 to-[#0B2E59] text-white flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-white/10 text-emerald-400 flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-white leading-tight">Edit Data Profil PUS</h3>
+                            <p class="text-xs text-slate-300">Perbarui identitas, domisili, atau paritas sasaran</p>
+                        </div>
+                    </div>
+                    <button wire:click="$set('showEditModal', false)"
+                            type="button"
+                            class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Modal Body -->
+                <form wire:submit="updatePus" class="overflow-y-auto p-6 space-y-4 flex-1">
+                    <div class="space-y-4">
+                        
+                        <!-- Nama Istri & Nama Suami -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                    Nama Istri <span class="text-red-500">*</span>
+                                </label>
+                                <input wire:model="edit_nama_istri"
+                                       type="text"
+                                       class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060] focus:border-transparent">
+                                @error('edit_nama_istri') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                    Nama Suami <span class="text-red-500">*</span>
+                                </label>
+                                <input wire:model="edit_nama_suami"
+                                       type="text"
+                                       class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060] focus:border-transparent">
+                                @error('edit_nama_suami') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+
+                        <!-- Tanggal Lahir Istri & Jumlah Anak -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                    Tanggal Lahir Istri <span class="text-red-500">*</span>
+                                </label>
+                                <input wire:model.live="edit_tanggal_lahir_istri"
+                                       type="date"
+                                       class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060] focus:border-transparent">
+                                @error('edit_tanggal_lahir_istri') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                    Jumlah Anak Lahir Hidup <span class="text-red-500">*</span>
+                                </label>
+                                <input wire:model.live="edit_jumlah_anak_lahir_hidup"
+                                       type="number"
+                                       min="0"
+                                       max="20"
+                                       class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060] focus:border-transparent">
+                                @error('edit_jumlah_anak_lahir_hidup') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+
+                        <!-- Live MUPAR Preview Box -->
+                        @if($edit_tanggal_lahir_istri)
+                            @php
+                                $editBirthDate = rescue(fn () => \Illuminate\Support\Carbon::parse($edit_tanggal_lahir_istri), null);
+                                $editAge = $editBirthDate ? (int) $editBirthDate->diffInYears(now()) : 0;
+                                $isEditMupar = $calculator->determineMupar($editAge, (int) $edit_jumlah_anak_lahir_hidup);
+                            @endphp
+                            <div class="p-3.5 rounded-xl border {{ $isEditMupar ? 'bg-purple-50/80 border-purple-200 text-purple-900 dark:bg-purple-950/40 dark:border-purple-800' : 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300' }} flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold">Usia Istri:</span>
+                                    <span>{{ $editAge }} tahun</span>
+                                    <span>&bull;</span>
+                                    <span class="font-bold">Skor P1:</span>
+                                    <span>{{ $calculator->calculateP1($editAge) }}/3</span>
+                                    <span>&bull;</span>
+                                    <span class="font-bold">Skor P2:</span>
+                                    <span>{{ $calculator->calculateP2((int) $edit_jumlah_anak_lahir_hidup) }}/3</span>
+                                </div>
+                                <div>
+                                    @if($isEditMupar)
+                                        <span class="px-2 py-0.5 rounded-md font-bold bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200">
+                                            Status: MUPAR
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-400">
+                                            Status: Non-MUPAR
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+
+                        <!-- Wilayah Kecamatan & Desa -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                    Kecamatan <span class="text-red-500">*</span>
+                                </label>
+                                <select wire:model.live="edit_kecamatan_id"
+                                        class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
+                                    <option value="">Pilih Kecamatan</option>
+                                    @foreach($kecamatans as $kec)
+                                        <option value="{{ $kec->id }}">{{ $kec->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('edit_kecamatan_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                    Desa / Kelurahan <span class="text-red-500">*</span>
+                                </label>
+                                <select wire:model="edit_desa_id"
+                                        class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
+                                    <option value="">Pilih Desa / Kelurahan</option>
+                                    @foreach($editModalDesas as $desa)
+                                        <option value="{{ $desa->id }}">{{ $desa->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('edit_desa_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+
+                        <!-- RT / RW & Alamat -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                    RT / RW
+                                </label>
+                                <input wire:model="edit_rt_rw"
+                                       type="text"
+                                       placeholder="RT 02 / RW 01"
+                                       class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                    Alamat Domisili
+                                </label>
+                                <input wire:model="edit_alamat"
+                                       type="text"
+                                       placeholder="Jl. Raya Belinyu No. 12"
+                                       class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Modal Footer Actions -->
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-end gap-3">
+                        <button wire:click="$set('showEditModal', false)"
+                                type="button"
+                                class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-700 transition">
+                            Batal
+                        </button>
+
+                        <button type="submit"
+                                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-[#008060] hover:bg-[#006e52] shadow-md shadow-[#008060]/20 transition data-loading:opacity-50 data-loading:pointer-events-none">
+                            <span wire:loading.remove wire:target="updatePus">Perbarui Data</span>
+                            <span wire:loading wire:target="updatePus">Menyimpan...</span>
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    @endif
+
+    <!-- ════════════════════════════════════════════════════════════
+         MODAL DETAIL & TIMELINE RIWAYAT PUS
+         ════════════════════════════════════════════════════════════ -->
+    @if($showDetailModal && $detailPus)
+        @php
+            $detailAge = $detailPus->usiaIstri();
+            $isDetailMupar = $calculator->determineMupar($detailAge, $detailPus->jumlah_anak_lahir_hidup);
+        @endphp
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[999999]"
+             x-data @keydown.escape.window="$wire.closeDetailModal()">
+            <div class="w-full max-w-3xl bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden transform transition-all my-auto max-h-[90vh] flex flex-col">
+                
+                <!-- Detail Header -->
+                <div class="px-6 py-5 bg-gradient-to-r from-[#0B2E59] via-[#0e3a6e] to-[#008060] text-white flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-white/10 text-emerald-300 flex items-center justify-center font-bold text-sm">
+                            {{ substr($detailPus->nama_istri, 0, 1) }}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-bold text-white leading-tight">
+                                    Ny. {{ $detailPus->nama_istri }} &amp; Tn. {{ $detailPus->nama_suami }}
+                                </h3>
+                                @if($isDetailMupar)
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/30 text-purple-200 border border-purple-400/30">
+                                        MUPAR
+                                    </span>
+                                @endif
+                            </div>
+                            <p class="text-xs text-slate-200 mt-0.5">
+                                Desa/Kel. {{ $detailPus->desa?->name ?? '-' }}, Kec. {{ $detailPus->kecamatan?->name ?? '-' }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <a href="/screening/create?pus_id={{ $detailPus->id }}" wire:navigate
+                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow transition">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            <span>Skrining Baru</span>
+                        </a>
+
+                        <button wire:click="closeDetailModal"
+                                type="button"
+                                class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Profile Summary Quick Info Bar -->
+                <div class="px-6 py-3 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700/60 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs shrink-0">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Usia Istri</span>
+                        <p class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">{{ $detailAge }} Tahun</p>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Jumlah Anak</span>
+                        <p class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">{{ $detailPus->jumlah_anak_lahir_hidup }} Orang</p>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Alamat Domisili</span>
+                        <p class="font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate">{{ $detailPus->alamat ?: ($detailPus->rt_rw ?: '-') }}</p>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Total Skrining</span>
+                        <p class="font-bold text-[#008060] dark:text-emerald-400 mt-0.5">{{ $detailPus->screenings->count() }} Kali</p>
+                    </div>
+                </div>
+
+                <!-- Timeline Riwayat Skrining & Intervensi -->
+                <div class="overflow-y-auto p-6 space-y-6 flex-1">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-[#008060]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>Timeline Rekam Jejak Skrining &amp; Intervensi KB</span>
+                    </h4>
+
+                    @if($detailPus->screenings->isEmpty())
+                        <div class="py-12 text-center rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-700">
+                            <div class="w-12 h-12 mx-auto rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mb-3">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                </svg>
+                            </div>
+                            <p class="text-sm font-bold text-slate-700 dark:text-slate-300">Belum Ada Rekam Skrining</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+                                Pasangan Usia Subur ini belum pernah dilakukan skrining 5 indikator.
+                            </p>
+                            <a href="/screening/create?pus_id={{ $detailPus->id }}" wire:navigate
+                               class="inline-flex items-center gap-1.5 mt-4 px-4 py-2 rounded-xl bg-[#008060] text-white text-xs font-bold shadow hover:bg-[#006e52] transition">
+                                Mulai Skrining Pertama
+                            </a>
+                        </div>
+                    @else
+                        <div class="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
+                            @foreach($detailPus->screenings as $sc)
+                                @php
+                                    $scBadge = match($sc->kategori) {
+                                        \App\Enums\PriorityCategory::TINGGI => 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/60 dark:text-red-300',
+                                        \App\Enums\PriorityCategory::SEDANG => 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300',
+                                        default => 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300',
+                                    };
+                                @endphp
+                                <div class="relative">
+                                    <!-- Node marker -->
+                                    <div class="absolute -left-6 top-1.5 w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 {{ $sc->total_skor >= 11 ? 'bg-purple-600' : ($sc->total_skor >= 7 ? 'bg-amber-500' : 'bg-emerald-500') }}"></div>
+
+                                    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xs space-y-3">
+                                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-extrabold text-slate-900 dark:text-white">
+                                                    {{ $sc->tanggal_skrining->translatedFormat('d F Y') }}
+                                                </span>
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold border {{ $scBadge }}">
+                                                    {{ $sc->prioritas_akhir }}
+                                                </span>
+                                                @if($sc->is_mupar)
+                                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300">
+                                                        MUPAR
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                                Total Skor: <span class="text-base font-black {{ $sc->total_skor >= 11 ? 'text-purple-600 dark:text-purple-400' : 'text-[#008060] dark:text-emerald-400' }}">{{ $sc->total_skor }}</span> / 15
+                                            </div>
+                                        </div>
+
+                                        <!-- Rincian 5 Parameter -->
+                                        <div class="grid grid-cols-5 gap-2 text-center p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-[11px]">
+                                            <div>
+                                                <span class="block text-[9px] text-slate-400 uppercase font-bold">P1: Usia</span>
+                                                <span class="font-extrabold text-slate-700 dark:text-slate-300">{{ $sc->p1_usia_istri }}/3</span>
+                                            </div>
+                                            <div>
+                                                <span class="block text-[9px] text-slate-400 uppercase font-bold">P2: Paritas</span>
+                                                <span class="font-extrabold text-slate-700 dark:text-slate-300">{{ $sc->p2_jumlah_anak }}/3</span>
+                                            </div>
+                                            <div>
+                                                <span class="block text-[9px] text-slate-400 uppercase font-bold">P3: Status KB</span>
+                                                <span class="font-extrabold text-slate-700 dark:text-slate-300">{{ $sc->p3_status_kontrasepsi }}/3</span>
+                                            </div>
+                                            <div>
+                                                <span class="block text-[9px] text-slate-400 uppercase font-bold">P4: Tujuan</span>
+                                                <span class="font-extrabold text-slate-700 dark:text-slate-300">{{ $sc->p4_tujuan_reproduksi }}/3</span>
+                                            </div>
+                                            <div>
+                                                <span class="block text-[9px] text-slate-400 uppercase font-bold">P5: Risiko</span>
+                                                <span class="font-extrabold text-slate-700 dark:text-slate-300">{{ $sc->p5_risiko_kehamilan }}/3</span>
+                                            </div>
+                                        </div>
+
+                                        @if($sc->catatan)
+                                            <p class="text-xs text-slate-500 italic bg-amber-50/50 dark:bg-amber-950/20 p-2 rounded-lg border border-amber-200/50">
+                                                "{{ $sc->catatan }}"
+                                            </p>
+                                        @endif
+
+                                        <!-- Log Intervensi yang Terhubung -->
+                                        @if($sc->interventions->isNotEmpty())
+                                            <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
+                                                <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block mb-1.5">
+                                                    Tindak Lanjut Intervensi Lapangan:
+                                                </span>
+                                                @foreach($sc->interventions as $it)
+                                                    <div class="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                                        <div>
+                                                            <div class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+                                                                <span>{{ $it->jenis_tindakan }}</span>
+                                                                @if($it->metode_kb)
+                                                                    <span class="px-2 py-0.5 rounded-full text-[10px] bg-[#008060] text-white">
+                                                                        {{ $it->metode_kb }}
+                                                                    </span>
+                                                                @endif
+                                                            </div>
+                                                            <p class="text-[11px] text-slate-500 mt-0.5">
+                                                                Oleh: {{ $it->user?->name ?? 'Petugas PKB' }} &bull; Tanggal: {{ $it->tanggal_kunjungan->translatedFormat('d M Y') }}
+                                                            </p>
+                                                        </div>
+                                                        <div class="text-right text-[11px] font-mono text-slate-600 dark:text-slate-400">
+                                                            <div>{{ $it->durasi_menit }} Menit Konseling</div>
+                                                            <div class="font-bold text-emerald-700 dark:text-emerald-300">Rp {{ number_format($it->biaya_operasional, 0, ',', '.') }}</div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @else
+                                            <div class="pt-1 flex items-center justify-between text-xs text-slate-400">
+                                                <span>Belum ada tindakan intervensi yang dicatat</span>
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                                    Menunggu Kunjungan
+                                                </span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Detail Footer -->
+                <div class="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700/60 flex items-center justify-between shrink-0">
+                    <span class="text-xs text-slate-400">
+                        ID Sasaran: #PUS-{{ str_pad($detailPus->id, 5, '0', STR_PAD_LEFT) }}
+                    </span>
+                    <button wire:click="closeDetailModal"
+                            type="button"
+                            class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-200/80 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition">
+                        Tutup
+                    </button>
+                </div>
 
             </div>
         </div>

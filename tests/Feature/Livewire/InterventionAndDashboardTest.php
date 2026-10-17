@@ -9,10 +9,7 @@ use App\Models\PusProfile;
 use App\Models\Screening;
 use App\Models\User;
 use Database\Seeders\WilayahSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
-
-uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(WilayahSeeder::class);
@@ -149,11 +146,12 @@ test('dashboard page renders for admin dinas with economic metrics and apexchart
 test('dashboard livewire component responds to territory filters', function () {
     $this->actingAs($this->admin);
 
-    Livewire::test('pages::dashboard.index')
-        ->assertOk()
+    $testable = Livewire::test('pages::dashboard.index');
+    $testable->assertOk()
         ->assertViewHas('totalPus', 1)
-        ->assertViewHas('prioritasUtamaCount', 1)
-        ->set('kecamatan_id', $this->kecamatan->id)
+        ->assertViewHas('prioritasUtamaCount', 1);
+
+    $testable->set('kecamatan_id', $this->kecamatan->id)
         ->assertSet('kecamatan_id', $this->kecamatan->id)
         ->call('resetFilters')
         ->assertSet('kecamatan_id', null);

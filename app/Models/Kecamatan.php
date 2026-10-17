@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Database\Factories\KecamatanFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -16,6 +18,9 @@ use Illuminate\Support\Carbon;
  */
 class Kecamatan extends Model
 {
+    /** @use HasFactory<KecamatanFactory> */
+    use HasFactory;
+
     protected $fillable = ['name', 'code'];
 
     /**

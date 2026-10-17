@@ -108,7 +108,7 @@ class EconomicMetricsService
     }
 
     /**
-     * Get all 4 economic metrics at once.
+     * Get all 4 economic metrics at once using a single optimized aggregate query.
      *
      * @param  array{kecamatan_id?: int, desa_id?: int, start_date?: string, end_date?: string}  $filters
      * @return array{
@@ -120,11 +120,37 @@ class EconomicMetricsService
      */
     public function allMetrics(array $filters = []): array
     {
+        $result = $this->baseInterventionQuery($filters)
+            ->selectRaw('
+                COUNT(DISTINCT screenings.pus_profile_id) as total_reached,
+                COUNT(DISTINCT CASE WHEN screenings.total_skor >= 7 THEN screenings.pus_profile_id END) as priority_reached,
+                SUM(CASE WHEN screenings.total_skor >= 7 THEN interventions.biaya_operasional ELSE 0 END) as priority_cost,
+                AVG(interventions.durasi_menit) as avg_duration,
+                COUNT(DISTINCT CASE WHEN interventions.menggunakan_kb_modern = 1 THEN screenings.pus_profile_id END) as kb_modern_reached
+            ')
+            ->first();
+
+        $totalReached = (int) ($result->total_reached ?? 0);
+
+        if ($totalReached === 0) {
+            return [
+                'ketepatan_sasaran' => 0.0,
+                'biaya_per_pus_prioritas' => 0.0,
+                'efisiensi_waktu' => 0.0,
+                'konversi_kb_modern' => 0.0,
+            ];
+        }
+
+        $priorityReached = (int) ($result->priority_reached ?? 0);
+        $priorityCost = (float) ($result->priority_cost ?? 0);
+        $avgDuration = (float) ($result->avg_duration ?? 0);
+        $kbModernReached = (int) ($result->kb_modern_reached ?? 0);
+
         return [
-            'ketepatan_sasaran' => $this->ketepatanSasaran($filters),
-            'biaya_per_pus_prioritas' => $this->biayaPerPusPrioritas($filters),
-            'efisiensi_waktu' => $this->efisiensiWaktu($filters),
-            'konversi_kb_modern' => $this->konversiKbModern($filters),
+            'ketepatan_sasaran' => round(($priorityReached / $totalReached) * 100, 2),
+            'biaya_per_pus_prioritas' => $priorityReached > 0 ? round($priorityCost / $priorityReached, 2) : 0.0,
+            'efisiensi_waktu' => round($avgDuration, 2),
+            'konversi_kb_modern' => round(($kbModernReached / $totalReached) * 100, 2),
         ];
     }
 
@@ -132,9 +158,8 @@ class EconomicMetricsService
      * Build the base query joining interventions with screenings and pus_profiles.
      *
      * @param  array{kecamatan_id?: int, desa_id?: int, start_date?: string, end_date?: string}  $filters
-     * @return Builder
      */
-    private function baseInterventionQuery(array $filters = [])
+    private function baseInterventionQuery(array $filters = []): Builder
     {
         $query = DB::table('interventions')
             ->join('screenings', 'interventions.screening_id', '=', 'screenings.id')

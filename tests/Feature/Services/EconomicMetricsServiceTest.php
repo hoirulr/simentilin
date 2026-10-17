@@ -8,13 +8,14 @@ use App\Models\PusProfile;
 use App\Models\Screening;
 use App\Models\User;
 use App\Services\EconomicMetricsService;
+use Tests\TestCase;
 
 beforeEach(function () {
     $this->service = new EconomicMetricsService;
 
     // Create territory
-    $this->kecamatan = Kecamatan::create(['name' => 'Sungailiat', 'code' => '19.01.01']);
-    $this->desa = Desa::create(['kecamatan_id' => $this->kecamatan->id, 'name' => 'Kudai', 'code' => '19.01.01.2001']);
+    $this->kecamatan = Kecamatan::factory()->create(['name' => 'Sungailiat', 'code' => '19.01.01']);
+    $this->desa = Desa::factory()->create(['kecamatan_id' => $this->kecamatan->id, 'name' => 'Kudai', 'code' => '19.01.01.2001']);
 
     // Create user
     $this->user = User::factory()->create([
@@ -26,14 +27,14 @@ beforeEach(function () {
 // ──── Helper ──────────────────────────────────────────────
 
 function createPusWithScreeningAndIntervention(
-    object $testContext,
+    TestCase $testContext,
     int $totalSkor,
     float $biaya,
     int $durasi,
     bool $kbModern,
     ?string $tanggalKunjungan = null,
 ): Intervention {
-    $pus = PusProfile::create([
+    $pus = PusProfile::factory()->create([
         'user_id' => $testContext->user->id,
         'kecamatan_id' => $testContext->kecamatan->id,
         'desa_id' => $testContext->desa->id,
@@ -43,7 +44,7 @@ function createPusWithScreeningAndIntervention(
         'jumlah_anak_lahir_hidup' => 2,
     ]);
 
-    $screening = Screening::create([
+    $screening = Screening::factory()->create([
         'pus_profile_id' => $pus->id,
         'user_id' => $testContext->user->id,
         'p1_usia_istri' => 3,
@@ -59,7 +60,7 @@ function createPusWithScreeningAndIntervention(
         'tanggal_skrining' => now(),
     ]);
 
-    return Intervention::create([
+    return Intervention::factory()->create([
         'screening_id' => $screening->id,
         'user_id' => $testContext->user->id,
         'tanggal_kunjungan' => $tanggalKunjungan ?? now()->toDateString(),
@@ -213,14 +214,14 @@ describe('allMetrics', function () {
 
 describe('territory filtering', function () {
     it('filters by kecamatan_id', function () {
-        $otherKec = Kecamatan::create(['name' => 'Belinyu', 'code' => '19.01.05']);
-        $otherDesa = Desa::create(['kecamatan_id' => $otherKec->id, 'name' => 'Belinyu', 'code' => '19.01.05.2001']);
+        $otherKec = Kecamatan::factory()->create(['name' => 'Belinyu', 'code' => '19.01.05']);
+        $otherDesa = Desa::factory()->create(['kecamatan_id' => $otherKec->id, 'name' => 'Belinyu', 'code' => '19.01.05.2001']);
 
         // Create PUS in Sungailiat
         createPusWithScreeningAndIntervention($this, totalSkor: 12, biaya: 100000, durasi: 30, kbModern: true);
 
         // Create PUS in Belinyu (different kecamatan)
-        $otherPus = PusProfile::create([
+        $otherPus = PusProfile::factory()->create([
             'user_id' => $this->user->id,
             'kecamatan_id' => $otherKec->id,
             'desa_id' => $otherDesa->id,
@@ -229,7 +230,7 @@ describe('territory filtering', function () {
             'tanggal_lahir_istri' => now()->subYears(28),
             'jumlah_anak_lahir_hidup' => 1,
         ]);
-        $otherScreening = Screening::create([
+        $otherScreening = Screening::factory()->create([
             'pus_profile_id' => $otherPus->id,
             'user_id' => $this->user->id,
             'p1_usia_istri' => 3, 'p2_jumlah_anak' => 3,
@@ -239,7 +240,7 @@ describe('territory filtering', function () {
             'prioritas_akhir' => 'Prioritas Edukasi Terjadwal', 'urutan_antrean' => 3,
             'tanggal_skrining' => now(),
         ]);
-        Intervention::create([
+        Intervention::factory()->create([
             'screening_id' => $otherScreening->id,
             'user_id' => $this->user->id,
             'tanggal_kunjungan' => now()->toDateString(),

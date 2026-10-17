@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Desa;
+use App\Models\Kecamatan;
 use App\Models\PusProfile;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -22,8 +24,8 @@ class PusProfileFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'kecamatan_id' => 1,
-            'desa_id' => 1,
+            'kecamatan_id' => fn () => Kecamatan::value('id') ?? Kecamatan::factory(),
+            'desa_id' => fn (array $attributes) => Desa::where('kecamatan_id', $attributes['kecamatan_id'])->value('id') ?? Desa::factory()->create(['kecamatan_id' => $attributes['kecamatan_id']])->id,
             'nama_istri' => fake()->name('female'),
             'nama_suami' => fake()->name('male'),
             'tanggal_lahir_istri' => fake()->dateTimeBetween('-45 years', '-20 years')->format('Y-m-d'),

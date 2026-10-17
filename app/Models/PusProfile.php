@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -88,11 +89,11 @@ class PusProfile extends Model
     /**
      * Get the latest screening for this PUS.
      *
-     * @return HasMany<Screening, $this>
+     * @return HasOne<Screening, $this>
      */
-    public function latestScreening(): HasMany
+    public function latestScreening(): HasOne
     {
-        return $this->screenings()->latest('tanggal_skrining')->limit(1);
+        return $this->hasOne(Screening::class)->latestOfMany('tanggal_skrining');
     }
 
     /**

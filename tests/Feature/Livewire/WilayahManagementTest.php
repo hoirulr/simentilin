@@ -6,10 +6,7 @@ use App\Models\Kecamatan;
 use App\Models\PusProfile;
 use App\Models\User;
 use Database\Seeders\WilayahSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
-
-uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(WilayahSeeder::class);
@@ -108,12 +105,12 @@ test('admin can edit desa name and code', function () {
         ->call('openEditDesaModal', $desa->id)
         ->assertSet('editingDesaId', $desa->id)
         ->assertSet('desa_name', $desa->name)
-        ->set('desa_name', $desa->name . ' Updated')
+        ->set('desa_name', $desa->name.' Updated')
         ->call('saveDesa')
         ->assertHasNoErrors()
         ->assertSet('showDesaModal', false);
 
-    expect($desa->fresh()->name)->toBe($desa->name . ' Updated');
+    expect($desa->fresh()->name)->toBe($desa->name.' Updated');
 });
 
 test('admin can edit kecamatan details', function () {

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome')->name('home');
 
 // Guest Authentication Routes
-Route::middleware('guest')->group(function () {
+Route::middleware(['guest', 'throttle:10,1'])->group(function () {
     Route::livewire('/login', 'pages::auth.login')->name('login');
 });
 
@@ -32,6 +32,8 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/screenings', 'pages::screening.index')->name('screening.index');
     Route::livewire('/analitik', 'pages::analitik.index')->name('analitik.index');
     Route::livewire('/mcpr-tfr', 'pages::mcpr.index')->name('mcpr.index');
+    Route::livewire('/laporan', 'pages::laporan.index')->name('laporan.index');
+    Route::livewire('/profile', 'pages::profile.index')->name('profile');
 
     // Admin Dinas Only Area
     Route::middleware('role:admin_dinas')->prefix('admin')->name('admin.')->group(function () {
@@ -39,8 +41,6 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/wilayah', 'pages::admin.wilayah')->name('wilayah');
 
-        Route::get('/laporan', function () {
-            return redirect()->route('dashboard');
-        })->name('laporan');
+        Route::livewire('/laporan', 'pages::admin.laporan')->name('laporan');
     });
 });
