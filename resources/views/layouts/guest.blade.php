@@ -11,27 +11,71 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet" />
 
-    <!-- Anti-Flash Script (Default ke Light Mode bawaan TailAdmin) -->
+    <!-- Anti-Flash Script & TailAdmin Theme Store Setup -->
     <script>
         (function() {
-            if (localStorage.getItem('simentilin_theme_v') !== 'light_v2') {
-                localStorage.removeItem('simentilin_dark');
-                localStorage.setItem('simentilin_theme_v', 'light_v2');
-                document.documentElement.classList.remove('dark');
-            } else if (localStorage.getItem('simentilin_dark') === 'true') {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
                 document.documentElement.classList.add('dark');
+                document.documentElement.style.colorScheme = 'dark';
             } else {
                 document.documentElement.classList.remove('dark');
+                document.documentElement.style.colorScheme = 'light';
             }
         })();
 
-        window.toggleDarkMode = window.toggleDarkMode || function() {
-            const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('simentilin_dark', isDark ? 'true' : 'false');
-            if (window.Alpine && window.Alpine.store && window.Alpine.store('tailadmin')) {
-                window.Alpine.store('tailadmin').darkMode = isDark;
+        document.addEventListener('alpine:init', () => {
+            if (!Alpine.store('theme')) {
+                Alpine.store('theme', {
+                    init() {
+                        const savedTheme = localStorage.getItem('theme');
+                        this.theme = savedTheme === 'dark' ? 'dark' : 'light';
+                        this.updateTheme();
+                    },
+                    theme: 'light',
+                    resolvedTheme: 'light',
+                    set(value) {
+                        value = value === 'dark' ? 'dark' : 'light';
+                        this.theme = value;
+                        localStorage.setItem('theme', value);
+                        this.updateTheme();
+                        window.dispatchEvent(new CustomEvent('theme-changed', { detail: value }));
+                    },
+                    toggle() {
+                        this.set(this.resolvedTheme === 'dark' ? 'light' : 'dark');
+                    },
+                    updateTheme() {
+                        const html = document.documentElement;
+                        const isDark = this.theme === 'dark';
+                        if (isDark) {
+                            html.classList.add('dark');
+                        } else {
+                            html.classList.remove('dark');
+                        }
+
+                        this.resolvedTheme = isDark ? 'dark' : 'light';
+                        html.setAttribute('data-color-scheme', this.resolvedTheme);
+                        html.dataset['theme'] = this.resolvedTheme;
+                        html.style.colorScheme = this.resolvedTheme;
+                        if (document.body) {
+                            document.body.dataset['theme'] = this.resolvedTheme;
+                            document.body.style.colorScheme = this.resolvedTheme;
+                        }
+                    }
+                });
             }
-            window.dispatchEvent(new CustomEvent('theme-changed', { detail: { dark: isDark } }));
+        });
+
+        window.toggleDarkMode = window.toggleDarkMode || function() {
+            if (window.Alpine && window.Alpine.store && window.Alpine.store('theme')) {
+                window.Alpine.store('theme').toggle();
+                return window.Alpine.store('theme').resolvedTheme === 'dark';
+            }
+            const isDark = document.documentElement.classList.toggle('dark');
+            const themeVal = isDark ? 'dark' : 'light';
+            localStorage.setItem('theme', themeVal);
+            document.documentElement.style.colorScheme = themeVal;
+            window.dispatchEvent(new CustomEvent('theme-changed', { detail: themeVal }));
             return isDark;
         };
     </script>
@@ -40,8 +84,7 @@
     @livewireStyles
 </head>
 <body class="h-full font-sans antialiased bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100 flex flex-col justify-between"
-      x-data
-      x-init="$store.tailadmin && $store.tailadmin.init()">
+      x-data>
 
     <!-- Top Ambient Lights -->
     <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -66,22 +109,41 @@
                 <span>Beranda</span>
             </a>
 
-            <!-- Dark Mode Toggle -->
+            <!-- Dark / Light Mode Sliding Toggle Switch -->
             <button type="button"
                     id="guest-theme-toggle-btn"
-                    @click="$store.tailadmin ? $store.tailadmin.toggleDarkMode() : window.toggleDarkMode()"
+                    @click="$store.theme ? $store.theme.toggle() : window.toggleDarkMode()"
                     onclick="if(!window.Alpine){window.toggleDarkMode();}"
-                    class="p-2 text-slate-500 rounded-xl bg-white hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 transition shadow-xs ring-1 ring-slate-200 dark:ring-slate-800 cursor-pointer"
+                    class="relative inline-flex items-center justify-between h-8 w-16 shrink-0 cursor-pointer rounded-full p-1 bg-slate-200/90 hover:bg-slate-300/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-300/80 dark:border-slate-700 transition-colors duration-200 shadow-2xs focus:outline-hidden"
+                    role="switch"
+                    :aria-checked="$store.theme ? $store.theme.resolvedTheme === 'dark' : document.documentElement.classList.contains('dark')"
                     title="Ganti Mode Terang / Gelap"
                     aria-label="Toggle Dark Mode">
-                <!-- Sun Icon -->
-                <svg class="w-5 h-5 text-amber-400 dark-icon-sun" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                </svg>
-                <!-- Moon Icon -->
-                <svg class="w-5 h-5 text-slate-600 dark-icon-moon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-                </svg>
+                <!-- Left Track Icon: Sun (Amber in light mode, dimmed in dark mode) -->
+                <span class="flex items-center justify-center w-6 h-6 text-amber-500/90 dark:text-slate-500 transition-colors pointer-events-none">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                </span>
+
+                <!-- Right Track Icon: Moon (Dimmed in light mode, emerald in dark mode) -->
+                <span class="flex items-center justify-center w-6 h-6 text-slate-400 dark:text-emerald-400 transition-colors pointer-events-none">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                </span>
+
+                <!-- Sliding Indicator Thumb (Moves between Left = Sun in Light Mode, Right = Moon in Dark Mode) -->
+                <span class="absolute top-1 left-1 flex items-center justify-center w-6 h-6 rounded-full bg-white dark:bg-slate-900 shadow-md ring-1 ring-slate-900/10 dark:ring-white/10 transition-transform duration-200 ease-in-out pointer-events-none translate-x-0 dark:translate-x-8">
+                    <!-- Sun Icon in Thumb (Visible in Light Mode) -->
+                    <svg class="w-3.5 h-3.5 text-amber-500 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <!-- Moon Icon in Thumb (Visible in Dark Mode) -->
+                    <svg class="w-3.5 h-3.5 text-emerald-400 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                </span>
             </button>
         </div>
     </header>
