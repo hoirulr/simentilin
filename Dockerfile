@@ -1,26 +1,6 @@
 # ===================================================
-# Stage 1: Build Frontend Assets (Vite & Tailwind CSS 4)
-# ===================================================
-# Gunakan node:20-bookworm-slim (glibc Debian) agar binary native Linux (Tailwind Oxide, LightningCSS, Rollup) berjalan sempurna
-FROM node:20-bookworm-slim AS frontend
-WORKDIR /app
-
-# Install ca-certificates untuk download font/resource
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
-
-# Salin package.json (tanpa package-lock.json Windows agar npm mengunduh binary native Linux yang tepat)
-COPY package.json ./
-RUN npm install --no-audit
-
-COPY vite.config.js ./
-COPY resources ./resources
-COPY public ./public
-
-# Build aset frontend
-RUN npm run build
-
-# ===================================================
-# Stage 2: PHP 8.3 FPM + Nginx + Supervisor Application
+# SI-MENTILIN Production Application Image
+# PHP 8.3 FPM + Nginx + Supervisor (Multi-Arch: AMD64 & ARM64)
 # ===================================================
 FROM php:8.3-fpm-alpine
 
@@ -31,28 +11,21 @@ RUN apk add --no-cache \
     netcat-openbsd \
     curl \
     git \
-    unzip \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    libzip-dev \
-    icu-dev \
-    oniguruma-dev \
-    libxml2-dev
+    unzip
 
-# Install & configure PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) \
-        pdo_mysql \
-        bcmath \
-        gd \
-        intl \
-        zip \
-        opcache \
-        exif \
-        pcntl
+# Install ekstensi PHP menggunakan official extension installer (cepat, menggunakan pre-built binary Alpine)
+COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
+RUN install-php-extensions \
+    pdo_mysql \
+    bcmath \
+    gd \
+    intl \
+    zip \
+    opcache \
+    exif \
+    pcntl
 
-# Install Composer from official image
+# Install Composer resmi
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
@@ -61,25 +34,22 @@ WORKDIR /var/www/html
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --no-plugins --no-scripts --prefer-dist --optimize-autoloader
 
-# Copy application source code
+# Salin seluruh kode aplikasi (termasuk public/build yang telah di-compile)
 COPY . .
 
-# Copy built frontend assets from Stage 1
-COPY --from=frontend /app/public/build ./public/build
-
-# Copy configurations
+# Copy konfigurasi Docker
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/custom.ini
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-# Fix line endings and set permissions
+# Fix line endings dan set permissions
 RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh \
     && chmod +x /usr/local/bin/entrypoint.sh \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Generate optimized autoload
+# Generate autoload teroptimasi
 RUN composer dump-autoload --optimize
 
 EXPOSE 80
