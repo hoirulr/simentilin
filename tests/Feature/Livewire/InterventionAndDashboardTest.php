@@ -131,15 +131,13 @@ test('dashboard page renders for admin dinas with economic metrics and apexchart
         ->assertOk()
         ->assertSee('Dashboard Eksekutif')
         ->assertSee('SI-MENTILIN')
-        ->assertSee('Indikator Nilai Ekonomis Inovasi (PIM III)')
-        ->assertSee('Visualisasi Capaian MCPR &amp; TFR Kabupaten Bangka', false)
-        ->assertSee('Sebaran PUS Prioritas di 8 Kecamatan');
+        ->assertSee('Rekapitulasi 8 Kecamatan Kabupaten Bangka');
 
     Livewire::test('pages::dashboard.index')
         ->assertOk()
         ->assertSee('Dashboard Eksekutif')
-        ->assertSee('Total PUS Binaan')
-        ->assertSee('PUS Ter-skrining')
+        ->assertSee('Total PUS Terdaftar')
+        ->assertSee('Sudah Diskrining')
         ->assertSee('Prioritas Utama');
 });
 
@@ -149,7 +147,7 @@ test('dashboard livewire component responds to territory filters', function () {
     $testable = Livewire::test('pages::dashboard.index');
     $testable->assertOk()
         ->assertViewHas('totalPus', 1)
-        ->assertViewHas('prioritasUtamaCount', 1);
+        ->assertViewHas('merahMupar', 1);
 
     $testable->set('kecamatan_id', $this->kecamatan->id)
         ->assertSet('kecamatan_id', $this->kecamatan->id)

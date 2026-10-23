@@ -13,7 +13,6 @@ new #[Layout('layouts.guest')] #[Title('Masuk Sistem | SI-MENTILIN')] class exte
     public string $email = '';
     public string $password = '';
     public bool $remember = false;
-    public ?string $selectedRole = null;
 
     protected function rules(): array
     {
@@ -31,21 +30,6 @@ new #[Layout('layouts.guest')] #[Title('Masuk Sistem | SI-MENTILIN')] class exte
             'password.required' => 'Kata sandi wajib diisi.',
             'password.min' => 'Kata sandi minimal 6 karakter.',
         ];
-    }
-
-    public function fillDemo(string $role): void
-    {
-        $this->resetErrorBag();
-
-        if ($role === UserRole::ADMIN_DINAS->value) {
-            $this->email = 'admin@simentilin.bangka.go.id';
-            $this->password = 'password';
-            $this->selectedRole = UserRole::ADMIN_DINAS->value;
-        } else {
-            $this->email = 'pkb.sungailiat@simentilin.bangka.go.id';
-            $this->password = 'password';
-            $this->selectedRole = UserRole::PETUGAS_LAPANGAN->value;
-        }
     }
 
     public function login()
@@ -77,71 +61,33 @@ new #[Layout('layouts.guest')] #[Title('Masuk Sistem | SI-MENTILIN')] class exte
 <div class="w-full bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden">
     <div class="grid grid-cols-1 lg:grid-cols-12 min-h-[580px]">
 
-        <!-- Left Visual & Role Selection Panel (5 cols) -->
-        <div class="lg:col-span-5 bg-gradient-to-br from-[#0B2E59] via-[#0e3666] to-[#008060] p-6 sm:p-8 text-white flex flex-col justify-between relative overflow-hidden">
+        <!-- Left Visual Panel (5 cols) -->
+        <div class="lg:col-span-5 bg-gradient-to-br from-[#0B2E59] via-[#0e3666] to-[#008060] p-6 sm:p-10 text-white flex flex-col justify-between relative overflow-hidden">
             <!-- Background Light Orbs -->
             <div class="absolute -right-10 -bottom-10 w-44 h-44 rounded-full bg-emerald-400/20 blur-2xl pointer-events-none"></div>
             <div class="absolute -left-10 -top-10 w-44 h-44 rounded-full bg-blue-400/20 blur-2xl pointer-events-none"></div>
 
-            <div class="relative z-10">
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-emerald-300 text-xs font-semibold mb-4 border border-white/15">
+            <div class="relative z-10 space-y-6">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-emerald-300 text-xs font-semibold border border-white/15">
                     <span class="w-2 h-2 rounded-full bg-[#10B981] animate-ping"></span>
                     <span>Portal Resmi DP2KBP3A Kab. Bangka</span>
                 </div>
 
-                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-snug">
-                    Autentikasi Peran SI-MENTILIN
-                </h2>
-                <p class="text-slate-200 text-xs sm:text-sm mt-2 leading-relaxed">
-                    Sistem Skrining Lima Indikator PUS &amp; Penanda Sasaran MUPAR Kabupaten Bangka.
-                </p>
-
-                <!-- Role Selector Helper for Fast Demo/Testing -->
-                <div class="mt-6 space-y-2.5">
-                    <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-300/90">
-                        Pilih Cepat Akses Peran (Demo):
+                <div class="space-y-3">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-snug">
+                        SI-MENTILIN
+                    </h2>
+                    <p class="text-emerald-200 font-semibold text-sm">
+                        Sistem Skrining Lima Indikator PUS &amp; Penanda Sasaran MUPAR
                     </p>
-
-                    <!-- Option 1: Petugas Lapangan -->
-                    <button type="button"
-                            wire:click="fillDemo('petugas_lapangan')"
-                            class="w-full text-left p-3 rounded-2xl transition duration-150 border {{ $selectedRole === 'petugas_lapangan' ? 'bg-[#008060] border-emerald-400 ring-2 ring-emerald-300/50 shadow-md' : 'bg-white/10 hover:bg-white/15 border-white/15' }}">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-lg bg-emerald-500/30 flex items-center justify-center font-bold text-xs text-emerald-200">
-                                    PKB
-                                </div>
-                                <div>
-                                    <h4 class="text-xs font-bold text-white">Petugas Lapangan (PKB/PLKB)</h4>
-                                    <p class="text-[10px] text-slate-300">Kec. Sungailiat &bull; Skrining &amp; Antrean MUPAR</p>
-                                </div>
-                            </div>
-                            <span class="text-xs {{ $selectedRole === 'petugas_lapangan' ? 'text-white' : 'text-slate-400' }}">&rarr;</span>
-                        </div>
-                    </button>
-
-                    <!-- Option 2: Admin Dinas -->
-                    <button type="button"
-                            wire:click="fillDemo('admin_dinas')"
-                            class="w-full text-left p-3 rounded-2xl transition duration-150 border {{ $selectedRole === 'admin_dinas' ? 'bg-amber-600/90 border-amber-300 ring-2 ring-amber-300/50 shadow-md' : 'bg-white/10 hover:bg-white/15 border-white/15' }}">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-lg bg-amber-500/30 flex items-center justify-center font-bold text-xs text-amber-200">
-                                    AD
-                                </div>
-                                <div>
-                                    <h4 class="text-xs font-bold text-white">Admin Dinas (DP2KBP3A)</h4>
-                                    <p class="text-[10px] text-slate-300">Eksekutif Kab. Bangka &bull; 8 Kecamatan &amp; ROI</p>
-                                </div>
-                            </div>
-                            <span class="text-xs {{ $selectedRole === 'admin_dinas' ? 'text-white' : 'text-slate-400' }}">&rarr;</span>
-                        </div>
-                    </button>
+                    <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">
+                        Sistem informasi terpadu Dinas Pengendalian Penduduk, Keluarga Berencana, Pemberdayaan Perempuan dan Perlindungan Anak Kabupaten Bangka untuk akselerasi penapisan KB dan intervensi keluarga berkualitas.
+                    </p>
                 </div>
             </div>
 
             <!-- Bottom Note -->
-            <div class="relative z-10 pt-6 mt-6 border-t border-white/10 text-[11px] text-slate-300 flex items-center justify-between">
+            <div class="relative z-10 pt-6 mt-8 border-t border-white/10 text-[11px] text-slate-300 flex items-center justify-between">
                 <span>Skrining 5 Indikator (0–15)</span>
                 <span class="font-semibold text-emerald-300">Bangka Berdaya</span>
             </div>

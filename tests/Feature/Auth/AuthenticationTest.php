@@ -28,13 +28,25 @@ beforeEach(function () {
     ]);
 });
 
-test('login screen can be rendered successfully', function () {
-    $response = $this->get(route('login'));
+test('root url is the default login screen and can be rendered successfully', function () {
+    $response = $this->get('/');
 
     $response->assertOk();
-    $response->assertSee('Autentikasi Peran SI-MENTILIN');
-    $response->assertSee('Petugas Lapangan');
-    $response->assertSee('Admin Dinas');
+    $response->assertSee('SI-MENTILIN');
+    $response->assertSee('Masuk ke Akun Anda');
+    $response->assertSee('Alamat Email');
+    $response->assertSee('Kata Sandi');
+    $response->assertDontSee('Akses Resmi Sistem');
+
+    // /login also redirects to root login route
+    $this->get('/login')->assertRedirect(route('login'));
+});
+
+test('authenticated user accessing root url is redirected to dashboard', function () {
+    $this->actingAs($this->petugas);
+
+    $this->get('/')->assertRedirect(route('dashboard'));
+    $this->get('/login')->assertRedirect(route('dashboard'));
 });
 
 test('petugas lapangan can authenticate with valid credentials', function () {
@@ -61,16 +73,12 @@ test('admin dinas can authenticate with valid credentials', function () {
     expect($this->admin->isAdminDinas())->toBeTrue();
 });
 
-test('demo role prefill button sets proper email and role for petugas and admin', function () {
-    Livewire::test('pages::auth.login')
-        ->call('fillDemo', 'petugas_lapangan')
-        ->assertSet('email', 'pkb.sungailiat@simentilin.bangka.go.id')
-        ->assertSet('password', 'password')
-        ->assertSet('selectedRole', 'petugas_lapangan')
-        ->call('fillDemo', 'admin_dinas')
-        ->assertSet('email', 'admin@simentilin.bangka.go.id')
-        ->assertSet('password', 'password')
-        ->assertSet('selectedRole', 'admin_dinas');
+test('login screen does not display demo prefill buttons', function () {
+    $response = $this->get(route('login'));
+
+    $response->assertOk();
+    $response->assertDontSee('fillDemo');
+    $response->assertDontSee('Pilih Cepat Akses Peran (Demo)');
 });
 
 test('cannot authenticate with invalid password', function () {

@@ -100,14 +100,6 @@
         </a>
 
         <div class="flex items-center gap-3">
-            <!-- Back to Landing Page -->
-            <a href="/" wire:navigate
-               class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                </svg>
-                <span>Beranda</span>
-            </a>
 
             <!-- Dark / Light Mode Sliding Toggle Switch -->
             <button type="button"

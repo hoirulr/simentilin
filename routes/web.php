@@ -4,13 +4,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-// Public Landing Page
-Route::view('/', 'welcome')->name('home');
-
-// Guest Authentication Routes
+// Guest Authentication Routes (Default Root / is Login Page)
 Route::middleware(['guest', 'throttle:10,1'])->group(function () {
-    Route::livewire('/login', 'pages::auth.login')->name('login');
+    Route::livewire('/', 'pages::auth.login')->name('login');
+    Route::get('/login', fn () => redirect()->route('login'));
 });
+
+// Optional Information Landing Page
+Route::view('/tentang', 'welcome')->name('about');
 
 // Authenticated Routes (Both Petugas Lapangan & Admin Dinas)
 Route::middleware('auth')->group(function () {

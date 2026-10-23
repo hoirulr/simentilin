@@ -210,7 +210,7 @@ new class extends Component
     @endif
 
     <!-- 4 TailAdmin Priority Stats Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         
         <!-- Total Antrean Aktif -->
         <div class="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
@@ -257,7 +257,7 @@ new class extends Component
             </div>
             <div class="mt-3 flex items-center gap-1.5 text-xs font-semibold text-red-800 dark:text-red-200">
                 <span class="inline-block w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
-                <span>Skor 11–15 &bull; Wajib Kunjungan Segera!</span>
+                <span>Skor 11–15 &bull; Kunjungan Segera!</span>
             </div>
         </div>
 
@@ -305,10 +305,10 @@ new class extends Component
 
     <!-- Toolbar Filter & Search -->
     <div class="mb-6 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
             
             <!-- Search -->
-            <div class="lg:col-span-2 relative">
+            <div class="sm:col-span-2 xl:col-span-2 relative min-w-0">
                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -321,22 +321,22 @@ new class extends Component
             </div>
 
             <!-- Filter Tingkat Prioritas / Urutan Antrean -->
-            <div>
+            <div class="min-w-0">
                 <select wire:model.live="filter_urutan"
-                        class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#008060] transition">
+                        class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#008060] transition truncate">
                     <option value="">Semua Tingkat Prioritas</option>
                     <option value="1">#1 Prioritas Utama (Skor 11-15 + MUPAR)</option>
                     <option value="2">#2 Prioritas Tinggi (Skor 11-15 + Non-MUPAR)</option>
-                    <option value="3">#3 Prioritas Edukasi Terjadwal (Skor 7-10 + MUPAR)</option>
+                    <option value="3">#3 Prioritas Edukasi (Skor 7-10 + MUPAR)</option>
                     <option value="4">#4 Prioritas Sedang (Skor 7-10 + Non-MUPAR)</option>
-                    <option value="5">#5 Monitoring / Edukasi Rutin (Skor 0-6)</option>
+                    <option value="5">#5 Monitoring Rutin (Skor 0-6)</option>
                 </select>
             </div>
 
             <!-- Filter Kecamatan -->
-            <div>
+            <div class="min-w-0">
                 <select wire:model.live="kecamatan_id"
-                        class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#008060] transition">
+                        class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#008060] transition truncate">
                     <option value="">Semua Kecamatan</option>
                     @foreach($kecamatans as $kec)
                         <option value="{{ $kec->id }}">{{ $kec->name }}</option>
@@ -345,9 +345,9 @@ new class extends Component
             </div>
 
             <!-- Filter MUPAR Only -->
-            <div>
+            <div class="min-w-0">
                 <select wire:model.live="filter_mupar"
-                        class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#008060] transition">
+                        class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#008060] transition truncate">
                     <option value="">Semua Status MUPAR</option>
                     <option value="1">Hanya Target MUPAR</option>
                     <option value="0">Hanya Non-MUPAR</option>
@@ -368,20 +368,20 @@ new class extends Component
         @endif
     </div>
 
-    <!-- Table Three TailAdmin: Prioritas Queue List -->
+    <!-- Table TailAdmin: Prioritas Queue List -->
     <div class="overflow-hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+            <table class="w-full min-w-full text-left text-sm text-slate-600 dark:text-slate-300">
                 <thead class="bg-slate-50/80 dark:bg-slate-900/60 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                     <tr>
-                        <th class="px-4 py-4 text-center">Urutan</th>
-                        <th class="px-5 py-4">Pasangan PUS</th>
-                        <th class="px-4 py-4">Wilayah Binaan</th>
-                        <th class="px-4 py-4">Total Skor (0–15)</th>
-                        <th class="px-4 py-4">Ketetapan Prioritas Akhir</th>
-                        <th class="px-4 py-4">Rekomendasi Tindakan PKB</th>
-                        <th class="px-4 py-4">Tgl Skrining</th>
-                        <th class="px-5 py-4 text-right">Aksi</th>
+                        <th class="w-14 px-3 py-3.5 text-center">Urutan</th>
+                        <th class="px-4 py-3.5 min-w-[190px]">Pasangan PUS</th>
+                        <th class="px-3 py-3.5 whitespace-nowrap">Wilayah Binaan</th>
+                        <th class="px-3 py-3.5 whitespace-nowrap">Total Skor</th>
+                        <th class="px-3 py-3.5 whitespace-nowrap">Ketetapan Prioritas</th>
+                        <th class="px-4 py-3.5 min-w-[200px] max-w-xs">Rekomendasi Tindakan</th>
+                        <th class="px-3 py-3.5 whitespace-nowrap">Tgl Skrining</th>
+                        <th class="px-4 py-3.5 text-right whitespace-nowrap min-w-[160px]">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60">
@@ -394,36 +394,36 @@ new class extends Component
                             class="transition {{ $isTopPriority ? 'bg-red-50/30 dark:bg-red-950/20 hover:bg-red-50/60 dark:hover:bg-red-950/40' : 'hover:bg-slate-50/60 dark:hover:bg-slate-750' }}">
                             
                             <!-- Urutan Rank Badge -->
-                            <td class="px-4 py-4 text-center whitespace-nowrap">
+                            <td class="px-3 py-3.5 text-center whitespace-nowrap">
                                 @if($item->urutan_antrean === 1)
-                                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-black bg-red-600 text-white shadow-md shadow-red-600/30 ring-2 ring-red-400/50">
+                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black bg-red-600 text-white shadow-md shadow-red-600/30 ring-2 ring-red-400/50">
                                         #1
                                     </span>
                                 @elseif($item->urutan_antrean === 2)
-                                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-black bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border border-red-300 dark:border-red-800">
+                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border border-red-300 dark:border-red-800">
                                         #2
                                     </span>
                                 @elseif($item->urutan_antrean === 3)
-                                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-black bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
+                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
                                         #3
                                     </span>
                                 @elseif($item->urutan_antrean === 4)
-                                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-black bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
                                         #4
                                     </span>
                                 @else
-                                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
                                         #5
                                     </span>
                                 @endif
                             </td>
 
                             <!-- Pasangan PUS -->
-                            <td class="px-5 py-4">
-                                <div class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                    Ny. {{ $pus?->nama_istri ?? '-' }}
+                            <td class="px-4 py-3.5">
+                                <div class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                                    <span>Ny. {{ $pus?->nama_istri ?? '-' }}</span>
                                     @if($item->is_mupar)
-                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-950 dark:text-purple-300">
+                                        <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-950 dark:text-purple-300">
                                             MUPAR
                                         </span>
                                     @endif
@@ -434,25 +434,25 @@ new class extends Component
                             </td>
 
                             <!-- Wilayah -->
-                            <td class="px-4 py-4 whitespace-nowrap">
-                                <div class="font-medium text-slate-900 dark:text-white">
+                            <td class="px-3 py-3.5 whitespace-nowrap">
+                                <div class="font-medium text-slate-900 dark:text-white text-xs sm:text-sm">
                                     {{ $pus?->desa?->name ?? '-' }}
                                 </div>
-                                <div class="text-xs text-slate-500 dark:text-slate-400">
+                                <div class="text-[11px] text-slate-500 dark:text-slate-400">
                                     Kec. {{ $pus?->kecamatan?->name ?? '-' }}
                                 </div>
                             </td>
 
                             <!-- Total Skor -->
-                            <td class="px-4 py-4 whitespace-nowrap">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-base font-extrabold {{ $item->total_skor >= 11 ? 'text-red-600 dark:text-red-400' : ($item->total_skor >= 7 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400') }}">
+                            <td class="px-3 py-3.5 whitespace-nowrap">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-sm font-extrabold {{ $item->total_skor >= 11 ? 'text-red-600 dark:text-red-400' : ($item->total_skor >= 7 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400') }}">
                                         {{ $item->total_skor }}
                                     </span>
-                                    <span class="text-xs text-slate-400">/ 15</span>
+                                    <span class="text-[11px] text-slate-400">/ 15</span>
                                 </div>
                                 <!-- Micro Progress Bar -->
-                                <div class="w-24 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 mt-1.5 overflow-hidden">
+                                <div class="w-16 sm:w-20 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 mt-1 overflow-hidden">
                                     <div class="h-full rounded-full {{ $item->total_skor >= 11 ? 'bg-red-500' : ($item->total_skor >= 7 ? 'bg-amber-500' : 'bg-emerald-500') }}"
                                          style="width: {{ ($item->total_skor / 15) * 100 }}%">
                                     </div>
@@ -460,7 +460,7 @@ new class extends Component
                             </td>
 
                             <!-- Ketetapan Prioritas Akhir -->
-                            <td class="px-4 py-4 whitespace-nowrap">
+                            <td class="px-3 py-3.5 whitespace-nowrap">
                                 @php
                                     $badgeColor = match($item->urutan_antrean) {
                                         1 => 'bg-red-600 text-white font-black shadow-xs shadow-red-500/40',
@@ -470,16 +470,16 @@ new class extends Component
                                         default => 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 font-semibold',
                                     };
                                 @endphp
-                                <span class="inline-block px-2.5 py-1 rounded-lg text-xs border {{ $badgeColor }}">
+                                <span class="inline-block px-2 py-0.5 rounded-md text-[11px] border {{ $badgeColor }}">
                                     {{ $item->prioritas_akhir }}
                                 </span>
                             </td>
 
                             <!-- Rekomendasi Tindakan PKB -->
-                            <td class="px-4 py-4 text-xs">
-                                <span class="text-slate-700 dark:text-slate-300">
+                            <td class="px-4 py-3.5 text-xs">
+                                <p class="text-slate-700 dark:text-slate-300 leading-snug">
                                     @if($item->urutan_antrean === 1)
-                                        <strong class="text-red-600 dark:text-red-400">Prioritas utama:</strong> Penjangkauan &amp; konseling segera!
+                                        <strong class="text-red-600 dark:text-red-400 font-bold">Prioritas utama:</strong> Penjangkauan &amp; konseling segera!
                                     @elseif($item->urutan_antrean === 2)
                                         Prioritas penjangkauan &amp; konseling segera
                                     @elseif($item->urutan_antrean === 3)
@@ -489,17 +489,17 @@ new class extends Component
                                     @else
                                         Monitoring &amp; edukasi rutin
                                     @endif
-                                </span>
+                                </p>
                             </td>
 
                             <!-- Tgl Skrining -->
-                            <td class="px-4 py-4 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                            <td class="px-3 py-3.5 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
                                 {{ $item->tanggal_skrining->format('d M Y') }}
                             </td>
 
                             <!-- Aksi -->
-                            <td class="px-5 py-4 text-right whitespace-nowrap">
-                                <div class="flex items-center justify-end gap-2">
+                            <td class="px-4 py-3.5 text-right whitespace-nowrap">
+                                <div class="flex items-center justify-end gap-1.5">
                                     <button wire:click="openDetailModal({{ $item->id }})"
                                             type="button"
                                             class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 transition"
@@ -513,7 +513,7 @@ new class extends Component
 
                                     <button wire:click="$dispatch('open-intervention-modal', { screeningId: {{ $item->id }} })"
                                             type="button"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#008060] hover:bg-[#006e52] shadow-xs shadow-[#008060]/30 transition"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#008060] hover:bg-[#006e52] shadow-xs shadow-[#008060]/30 transition"
                                             title="Catat Realisasi Intervensi &amp; Konseling">
                                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
