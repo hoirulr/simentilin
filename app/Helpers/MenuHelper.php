@@ -61,23 +61,12 @@ class MenuHelper
     {
         return [
             [
-                'title' => 'Eksekutif & PIM III',
+                'title' => 'Menu Utama',
                 'items' => [
                     [
                         'icon' => 'dashboard',
                         'name' => 'Dashboard Eksekutif',
                         'path' => '/dashboard',
-                    ],
-                    [
-                        'icon' => 'analytics',
-                        'name' => 'Nilai Ekonomis (PIM III)',
-                        'path' => '/analitik',
-                        'pro' => true,
-                    ],
-                    [
-                        'icon' => 'charts',
-                        'name' => 'Grafik MCPR & TFR',
-                        'path' => '/mcpr-tfr',
                     ],
                 ],
             ],
