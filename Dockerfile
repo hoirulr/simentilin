@@ -1,16 +1,22 @@
 # ===================================================
 # Stage 1: Build Frontend Assets (Vite & Tailwind CSS 4)
 # ===================================================
-FROM node:20-alpine AS frontend
+# Gunakan node:20-bookworm-slim (glibc Debian) agar binary native Linux (Tailwind Oxide, LightningCSS, Rollup) berjalan sempurna
+FROM node:20-bookworm-slim AS frontend
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci || npm install
+# Install ca-certificates untuk download font/resource
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Salin package.json (tanpa package-lock.json Windows agar npm mengunduh binary native Linux yang tepat)
+COPY package.json ./
+RUN npm install --no-audit
 
 COPY vite.config.js ./
 COPY resources ./resources
 COPY public ./public
 
+# Build aset frontend
 RUN npm run build
 
 # ===================================================
