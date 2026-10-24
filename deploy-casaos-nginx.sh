@@ -23,25 +23,48 @@ fi
 
 echo "✅ Container '${CONTAINER_NAME}' aktif."
 
-# 2. Install dependensi PHP yang dibutuhkan Laravel di dalam container Nginx
-echo "📦 Memeriksa & memasang ekstensi PHP di dalam container..."
+# 2. Deteksi versi PHP & install ekstensi yang dibutuhkan Laravel
+echo "📦 Memeriksa versi PHP & memasang ekstensi di dalam container..."
 docker exec "${CONTAINER_NAME}" apk update > /dev/null 2>&1 || true
+
+# Deteksi versi PHP utama di container (contoh: 8.5 -> php85, 8.3 -> php83)
+PHP_DETECTED_VER=$(docker exec "${CONTAINER_NAME}" php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;' 2>/dev/null || echo "85")
+echo "ℹ️ Terdeteksi versi PHP di container: PHP ${PHP_DETECTED_VER:0:1}.${PHP_DETECTED_VER:1:1}"
+
+# Coba pasang paket spesifik versi, atau fallback ke unversioned php paket
 docker exec "${CONTAINER_NAME}" apk add --no-cache \
-    php83-pdo \
-    php83-pdo_mysql \
-    php83-pdo_sqlite \
-    php83-sqlite3 \
-    php83-fileinfo \
-    php83-tokenizer \
-    php83-xml \
-    php83-dom \
-    php83-curl \
-    php83-intl \
-    php83-session \
-    php83-openssl \
-    php83-mbstring \
-    php83-ctype \
-    php83-zip \
+    php${PHP_DETECTED_VER}-pdo \
+    php${PHP_DETECTED_VER}-pdo_mysql \
+    php${PHP_DETECTED_VER}-pdo_sqlite \
+    php${PHP_DETECTED_VER}-sqlite3 \
+    php${PHP_DETECTED_VER}-fileinfo \
+    php${PHP_DETECTED_VER}-tokenizer \
+    php${PHP_DETECTED_VER}-xml \
+    php${PHP_DETECTED_VER}-dom \
+    php${PHP_DETECTED_VER}-curl \
+    php${PHP_DETECTED_VER}-intl \
+    php${PHP_DETECTED_VER}-session \
+    php${PHP_DETECTED_VER}-openssl \
+    php${PHP_DETECTED_VER}-mbstring \
+    php${PHP_DETECTED_VER}-ctype \
+    php${PHP_DETECTED_VER}-zip \
+    composer > /dev/null 2>&1 || \
+docker exec "${CONTAINER_NAME}" apk add --no-cache \
+    php-pdo \
+    php-pdo_mysql \
+    php-pdo_sqlite \
+    php-sqlite3 \
+    php-fileinfo \
+    php-tokenizer \
+    php-xml \
+    php-dom \
+    php-curl \
+    php-intl \
+    php-session \
+    php-openssl \
+    php-mbstring \
+    php-ctype \
+    php-zip \
     composer > /dev/null 2>&1 || true
 
 # 3. Clone atau Pull source code ke folder target
@@ -74,6 +97,13 @@ if [ ! -f "${APP_DIR}/.env" ]; then
     sed -i "s|DB_CONNECTION=.*|DB_CONNECTION=sqlite|g" "${APP_DIR}/.env"
 fi
 
+# Pastikan struktur folder storage & cache Laravel lengkap
+mkdir -p "${APP_DIR}/storage/framework/views" \
+         "${APP_DIR}/storage/framework/cache/data" \
+         "${APP_DIR}/storage/framework/sessions" \
+         "${APP_DIR}/storage/logs" \
+         "${APP_DIR}/bootstrap/cache"
+
 # Pastikan file database sqlite ada jika menggunakan sqlite
 if grep -q "DB_CONNECTION=sqlite" "${APP_DIR}/.env"; then
     mkdir -p "${APP_DIR}/database"
@@ -82,9 +112,13 @@ if grep -q "DB_CONNECTION=sqlite" "${APP_DIR}/.env"; then
     fi
 fi
 
+# Atur kepemilikan awal agar proses di container dapat menulis
+chown -R 1000:1000 "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache" "${APP_DIR}/database" 2>/dev/null || true
+chmod -R 775 "${APP_DIR}/storage" "${APP_DIR}/bootstrap/cache" 2>/dev/null || true
+
 # 5. Jalankan Composer Install di dalam container
 echo "📦 Menginstall dependensi Composer (vendor)..."
-docker exec -w /config/www/simentilin "${CONTAINER_NAME}" composer install --no-dev --optimize-autoloader --no-interaction
+docker exec -w /config/www/simentilin "${CONTAINER_NAME}" composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-req=php+
 
 # 6. Generate APP_KEY jika belum ada
 if ! grep -q "^APP_KEY=base64:" "${APP_DIR}/.env"; then

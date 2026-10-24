@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
+use Illuminate\Support\Facades\URL;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -26,6 +28,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (
+            app()->isProduction()
+            || str_starts_with((string) config('app.url'), 'https://')
+            || request()->header('X-Forwarded-Proto') === 'https'
+        ) {
+            URL::forceScheme('https');
+        }
+
         Gate::policy(PusProfile::class, PusProfilePolicy::class);
 
         $this->configureDefaults();
