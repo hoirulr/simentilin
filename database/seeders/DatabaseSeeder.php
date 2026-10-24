@@ -22,20 +22,30 @@ class DatabaseSeeder extends Seeder
         $this->call(WilayahSeeder::class);
 
         // Create default admin dinas account
-        User::factory()->create([
-            'name' => 'Admin DP2KBP3A',
-            'email' => 'admin@simentilin.bangka.go.id',
-            'role' => UserRole::ADMIN_DINAS,
-        ]);
+        User::firstOrCreate(
+            ['email' => 'admin@simentilin.bangka.go.id'],
+            [
+                'name' => 'Admin DP2KBP3A',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                'role' => UserRole::ADMIN_DINAS,
+                'email_verified_at' => now(),
+                'remember_token' => \Illuminate\Support\Str::random(10),
+            ]
+        );
 
         // Create default petugas lapangan account
-        $pkb = User::factory()->create([
-            'name' => 'PKB Sungailiat',
-            'email' => 'pkb.sungailiat@simentilin.bangka.go.id',
-            'role' => UserRole::PETUGAS_LAPANGAN,
-            'kecamatan_id' => 1,
-            'desa_id' => 1,
-        ]);
+        $pkb = User::firstOrCreate(
+            ['email' => 'pkb.sungailiat@simentilin.bangka.go.id'],
+            [
+                'name' => 'PKB Sungailiat',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                'role' => UserRole::PETUGAS_LAPANGAN,
+                'kecamatan_id' => 1,
+                'desa_id' => 1,
+                'email_verified_at' => now(),
+                'remember_token' => \Illuminate\Support\Str::random(10),
+            ]
+        );
 
         $calculator = new ScreeningCalculatorService;
 
