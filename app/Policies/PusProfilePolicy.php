@@ -56,15 +56,15 @@ class PusProfilePolicy
             return false;
         }
 
-        if ($user->desa_id && $user->desa_id !== $pusProfile->desa_id) {
-            return false;
+        if ($user->desa_id) {
+            return $user->desa_id === $pusProfile->desa_id;
         }
 
-        if ($user->kecamatan_id && $user->kecamatan_id !== $pusProfile->kecamatan_id) {
-            return false;
+        if ($user->kecamatan_id) {
+            return $user->kecamatan_id === $pusProfile->kecamatan_id;
         }
 
-        return true;
+        return false;
     }
 
     /**
@@ -80,14 +80,14 @@ class PusProfilePolicy
             return false;
         }
 
-        if ($user->desa_id && $user->desa_id !== $pusProfile->desa_id) {
-            return false;
+        if ($user->desa_id) {
+            return $user->desa_id === $pusProfile->desa_id;
         }
 
-        if ($user->kecamatan_id && $user->kecamatan_id !== $pusProfile->kecamatan_id) {
-            return false;
+        if ($user->kecamatan_id) {
+            return $user->kecamatan_id === $pusProfile->kecamatan_id;
         }
 
-        return true;
+        return false;
     }
 }

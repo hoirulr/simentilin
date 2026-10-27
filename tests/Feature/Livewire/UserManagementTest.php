@@ -55,8 +55,8 @@ test('admin can create a new petugas lapangan user with territory assignment', f
         ->call('openCreateModal')
         ->set('name', 'Budi Santoso, S.Sos')
         ->set('email', 'budi.santoso@simentilin.bangka.go.id')
-        ->set('password', 'password123')
-        ->set('password_confirmation', 'password123')
+        ->set('password', 'SecureUserPass123!')
+        ->set('password_confirmation', 'SecureUserPass123!')
         ->set('role', UserRole::PETUGAS_LAPANGAN->value)
         ->set('kecamatan_id', $this->kecamatan->id)
         ->set('desa_id', $this->desa->id)
@@ -80,8 +80,8 @@ test('admin can create a new admin dinas user without territory assignment', fun
         ->call('openCreateModal')
         ->set('name', 'Staf Bidang KB Dinas')
         ->set('email', 'staf.kb@simentilin.bangka.go.id')
-        ->set('password', 'password123')
-        ->set('password_confirmation', 'password123')
+        ->set('password', 'SecureUserPass123!')
+        ->set('password_confirmation', 'SecureUserPass123!')
         ->set('role', UserRole::ADMIN_DINAS->value)
         ->call('createUser')
         ->assertHasNoErrors();
@@ -134,24 +134,25 @@ test('admin can reset user password', function () {
 
     Livewire::test('pages::admin.users')
         ->call('openResetPasswordModal', $this->petugas->id)
-        ->set('new_password', 'passwordBaru2026')
-        ->set('new_password_confirmation', 'passwordBaru2026')
+        ->set('new_password', 'PasswordBaru2026!')
+        ->set('new_password_confirmation', 'PasswordBaru2026!')
         ->call('resetPassword')
         ->assertHasNoErrors()
         ->assertSet('showResetPasswordModal', false);
 
-    expect(Hash::check('passwordBaru2026', $this->petugas->fresh()->password))->toBeTrue();
+    expect(Hash::check('PasswordBaru2026!', $this->petugas->fresh()->password))->toBeTrue();
 });
 
-test('admin can reset user password to default', function () {
+test('admin cannot reset password without matching confirmation', function () {
     $this->actingAs($this->admin);
 
     Livewire::test('pages::admin.users')
         ->call('openResetPasswordModal', $this->petugas->id)
-        ->call('resetToDefaultPassword')
-        ->assertSet('showResetPasswordModal', false);
-
-    expect(Hash::check('password123', $this->petugas->fresh()->password))->toBeTrue();
+        ->set('new_password', 'PasswordBaru2026!')
+        ->set('new_password_confirmation', 'MismatchPass123')
+        ->call('resetPassword')
+        ->assertHasErrors(['new_password' => 'confirmed'])
+        ->assertSet('showResetPasswordModal', true);
 });
 
 test('admin cannot delete their own account', function () {
@@ -179,7 +180,7 @@ test('admin can delete another user account', function () {
         ->call('deleteUser')
         ->assertSet('showDeleteModal', false);
 
-    $this->assertDatabaseMissing('users', ['id' => $userToDelete->id]);
+    $this->assertSoftDeleted('users', ['id' => $userToDelete->id]);
 });
 
 test('search and role filters filter user list properly', function () {

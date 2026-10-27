@@ -76,16 +76,28 @@ new #[Title('Grafik MCPR & TFR | SI-MENTILIN')] class extends Component
         $totalMethods = array_sum($methodsCount);
         $mkjpRate = $totalMethods > 0 ? round(($mkjpCount / $totalMethods) * 100, 1) : 39.0;
 
-        // Breakdown per Kecamatan
-        $kecamatanBreakdown = $kecQuery->map(function ($kec) {
-            $pusCount = PusProfile::where('kecamatan_id', $kec->id)->count();
+        // Breakdown per Kecamatan (optimized bulk queries to eliminate N+1)
+        $pusPerKec = PusProfile::selectRaw('kecamatan_id, count(*) as count')
+            ->groupBy('kecamatan_id')
+            ->pluck('count', 'kecamatan_id');
 
-            $invQuery = Intervention::join('screenings', 'interventions.screening_id', '=', 'screenings.id')
-                ->join('pus_profiles', 'screenings.pus_profile_id', '=', 'pus_profiles.id')
-                ->where('pus_profiles.kecamatan_id', $kec->id);
+        $invPerKec = Intervention::join('screenings', 'interventions.screening_id', '=', 'screenings.id')
+            ->join('pus_profiles', 'screenings.pus_profile_id', '=', 'pus_profiles.id')
+            ->selectRaw("
+                pus_profiles.kecamatan_id,
+                count(*) as inv_count,
+                count(case when interventions.menggunakan_kb_modern = 1 then 1 end) as modern_count
+            ")
+            ->groupBy('pus_profiles.kecamatan_id')
+            ->get()
+            ->keyBy('kecamatan_id');
 
-            $invCount = (clone $invQuery)->count();
-            $modernCount = (clone $invQuery)->where('interventions.menggunakan_kb_modern', true)->count();
+        $kecamatanBreakdown = $kecQuery->map(function ($kec) use ($pusPerKec, $invPerKec) {
+            $pusCount = (int) ($pusPerKec[$kec->id] ?? 0);
+            $stat = $invPerKec[$kec->id] ?? null;
+
+            $invCount = (int) ($stat->inv_count ?? 0);
+            $modernCount = (int) ($stat->modern_count ?? 0);
             $kRate = $invCount > 0 ? round(($modernCount / $invCount) * 100, 1) : 62.0;
             $tfr = max(2.05, round(2.55 - ($kRate * 0.0065), 2));
 
@@ -239,8 +251,15 @@ new #[Title('Grafik MCPR & TFR | SI-MENTILIN')] class extends Component
     </div>
 
     <!-- ════════════════════════════════════════════════════════════
-         CHARTS ROW (ApexCharts Integration with wire:ignore)
+         CHARTS ROW (Livewire 4 Island with ApexCharts wire:ignore)
          ════════════════════════════════════════════════════════════ -->
+    @island(name: 'mcpr-charts')
+        @placeholder
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-pulse">
+                <div class="lg:col-span-2 h-72 rounded-3xl bg-slate-100 dark:bg-slate-700/50"></div>
+                <div class="h-72 rounded-3xl bg-slate-100 dark:bg-slate-700/50"></div>
+            </div>
+        @endplaceholder
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         <!-- GRAFIK 1: TREN MCPR BULANAN (2/3 Col) -->
@@ -367,6 +386,7 @@ new #[Title('Grafik MCPR & TFR | SI-MENTILIN')] class extends Component
         </div>
 
     </div>
+    @endisland
 
     <!-- ════════════════════════════════════════════════════════════
          TABEL BREAKDOWN MCPR & TFR PER 8 KECAMATAN

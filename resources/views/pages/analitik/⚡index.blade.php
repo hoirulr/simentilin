@@ -82,29 +82,28 @@ new #[Title('Analitik Nilai Ekonomis (PIM III) | SI-MENTILIN')] class extends Co
         $costSavedPerTarget = max(0, $costBaselinePerTarget - $costCurrentPerPriority);
         $costEfficiencyPercent = $costBaselinePerTarget > 0 ? round(($costSavedPerTarget / $costBaselinePerTarget) * 100, 1) : 0;
 
-        // Breakdown per Kecamatan for comparative performance
-        $kecamatanPerformance = Kecamatan::orderBy('name')->get()->map(function ($kec) use ($metricsService) {
-            $kecFilters = ['kecamatan_id' => $kec->id];
-            $kMetrics = $metricsService->allMetrics($kecFilters);
-
-            $q = DB::table('interventions')
-                ->join('screenings', 'interventions.screening_id', '=', 'screenings.id')
-                ->join('pus_profiles', 'screenings.pus_profile_id', '=', 'pus_profiles.id')
-                ->where('pus_profiles.kecamatan_id', $kec->id);
-
-            $reached = (clone $q)->distinct('screenings.pus_profile_id')->count('screenings.pus_profile_id');
-            $cost = (float) (clone $q)->sum('interventions.biaya_operasional');
+        // Breakdown per Kecamatan for comparative performance (Single bulk query, eliminates N+1)
+        $allDistrictData = $metricsService->allDistrictsMetrics();
+        $kecamatanPerformance = Kecamatan::orderBy('name')->get()->map(function ($kec) use ($allDistrictData) {
+            $data = $allDistrictData[$kec->id] ?? [
+                'total_reached' => 0,
+                'total_cost' => 0.0,
+                'ketepatan_sasaran' => 0.0,
+                'biaya_per_pus_prioritas' => 0.0,
+                'efisiensi_waktu' => 0.0,
+                'konversi_kb_modern' => 0.0,
+            ];
 
             return [
                 'id' => $kec->id,
                 'name' => $kec->name,
                 'code' => $kec->code,
-                'total_reached' => $reached,
-                'total_cost' => $cost,
-                'ketepatan' => $kMetrics['ketepatan_sasaran'],
-                'biaya_per_pus' => $kMetrics['biaya_per_pus_prioritas'],
-                'efisiensi_waktu' => $kMetrics['efisiensi_waktu'],
-                'konversi_kb' => $kMetrics['konversi_kb_modern'],
+                'total_reached' => $data['total_reached'],
+                'total_cost' => $data['total_cost'],
+                'ketepatan' => $data['ketepatan_sasaran'],
+                'biaya_per_pus' => $data['biaya_per_pus_prioritas'],
+                'efisiensi_waktu' => $data['efisiensi_waktu'],
+                'konversi_kb' => $data['konversi_kb_modern'],
             ];
         });
 
@@ -487,8 +486,9 @@ new #[Title('Analitik Nilai Ekonomis (PIM III) | SI-MENTILIN')] class extends Co
     </div>
 
     <!-- ════════════════════════════════════════════════════════════
-         TABEL PERFORMA NILAI EKONOMIS 8 KECAMATAN
+         TABEL PERFORMA NILAI EKONOMIS 8 KECAMATAN (@island)
          ════════════════════════════════════════════════════════════ -->
+    @island(name: 'economic-breakdown')
     <div class="p-6 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
         <div class="flex items-center justify-between mb-4">
             <div>
@@ -543,5 +543,12 @@ new #[Title('Analitik Nilai Ekonomis (PIM III) | SI-MENTILIN')] class extends Co
             </table>
         </div>
     </div>
+    @placeholder
+        <div class="p-6 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 animate-pulse space-y-4">
+            <div class="h-5 bg-slate-200 dark:bg-slate-700 rounded w-1/4"></div>
+            <div class="h-44 bg-slate-100 dark:bg-slate-700/50 rounded-2xl"></div>
+        </div>
+    @endplaceholder
+    @endisland
 
 </div>

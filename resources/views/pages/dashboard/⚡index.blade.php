@@ -3,8 +3,7 @@
 use App\Models\Desa;
 use App\Models\Intervention;
 use App\Models\Kecamatan;
-use App\Models\PusProfile;
-use App\Models\Screening;
+use App\Services\DashboardMetricsService;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -53,7 +52,7 @@ new #[Title('Dashboard | SI-MENTILIN')] class extends Component
         $this->end_date = null;
     }
 
-    public function with(): array
+    public function with(DashboardMetricsService $dashboardService): array
     {
         $user = auth()->user();
         $isAdmin = ! $user || $user->isAdminDinas();
@@ -64,133 +63,34 @@ new #[Title('Dashboard | SI-MENTILIN')] class extends Component
             ? Desa::where('kecamatan_id', $this->kecamatan_id)->orderBy('name')->get()
             : collect();
 
-        // 2. Base PUS Query (unscoped – total registered)
-        $pusQuery = PusProfile::query();
-        if ($this->kecamatan_id) {
-            $pusQuery->where('kecamatan_id', $this->kecamatan_id);
-        }
-        if ($this->desa_id) {
-            $pusQuery->where('desa_id', $this->desa_id);
-        }
+        // 2. Summary & Priority Blocks (optimized single-query calculation)
+        $summaryAndBlocks = $dashboardService->getSummaryAndBlocks(
+            $this->kecamatan_id,
+            $this->desa_id,
+            $this->start_date,
+            $this->end_date
+        );
 
-        // 3. Base Screening Query with territory + date filters
-        $screeningQuery = Screening::query()
-            ->whereHas('pusProfile', function ($q) {
-                if ($this->kecamatan_id) {
-                    $q->where('kecamatan_id', $this->kecamatan_id);
-                }
-                if ($this->desa_id) {
-                    $q->where('desa_id', $this->desa_id);
-                }
-            });
+        // 3. Rekapitulasi per Kecamatan (optimized 2-query batch)
+        $kecamatanStats = $dashboardService->getKecamatanStats();
 
-        if ($this->start_date) {
-            $screeningQuery->where('tanggal_skrining', '>=', $this->start_date);
-        }
-        if ($this->end_date) {
-            $screeningQuery->where('tanggal_skrining', '<=', $this->end_date);
-        }
-
-        // 4. PUS Summary Counters
-        $totalPus    = (clone $pusQuery)->count();
-        $totalScreened = (clone $screeningQuery)->distinct('pus_profile_id')->count('pus_profile_id');
-        $totalBelumSkrining = $totalPus - $totalScreened;
-
-        // 5. Blok MERAH — Skor 11-15
-        $merahBase = (clone $screeningQuery)->where('total_skor', '>=', 11);
-        $merahMupar       = (clone $merahBase)->where('is_mupar', true)->count();
-        $merahNonMupar    = (clone $merahBase)->where('is_mupar', false)->count();
-        $merahMuparSudah  = (clone $merahBase)->where('is_mupar', true)->whereHas('interventions')->count();
-        $merahMuparBelum  = $merahMupar - $merahMuparSudah;
-        $merahNonSudah    = (clone $merahBase)->where('is_mupar', false)->whereHas('interventions')->count();
-        $merahNonBelum    = $merahNonMupar - $merahNonSudah;
-
-        // 6. Blok KUNING — Skor 7-10
-        $kuningBase = (clone $screeningQuery)->whereBetween('total_skor', [7, 10]);
-        $kuningMupar       = (clone $kuningBase)->where('is_mupar', true)->count();
-        $kuningNonMupar    = (clone $kuningBase)->where('is_mupar', false)->count();
-        $kuningMuparSudah  = (clone $kuningBase)->where('is_mupar', true)->whereHas('interventions')->count();
-        $kuningMuparBelum  = $kuningMupar - $kuningMuparSudah;
-        $kuningNonSudah    = (clone $kuningBase)->where('is_mupar', false)->whereHas('interventions')->count();
-        $kuningNonBelum    = $kuningNonMupar - $kuningNonSudah;
-
-        // 7. Blok HIJAU — Skor 0-6
-        $hijauBase = (clone $screeningQuery)->where('total_skor', '<=', 6);
-        $hijauMupar       = (clone $hijauBase)->where('is_mupar', true)->count();
-        $hijauNonMupar    = (clone $hijauBase)->where('is_mupar', false)->count();
-        $hijauMuparSudah  = (clone $hijauBase)->where('is_mupar', true)->whereHas('interventions')->count();
-        $hijauMuparBelum  = $hijauMupar - $hijauMuparSudah;
-        $hijauNonSudah    = (clone $hijauBase)->where('is_mupar', false)->whereHas('interventions')->count();
-        $hijauNonBelum    = $hijauNonMupar - $hijauNonSudah;
-
-        // 8. Rekapitulasi per Kecamatan (full columns)
-        $kecamatanStats = Kecamatan::orderBy('name')->get()->map(function ($kec) {
-            $totalPusKec = PusProfile::where('kecamatan_id', $kec->id)->count();
-
-            $screenKec = Screening::whereHas('pusProfile', fn ($q) => $q->where('kecamatan_id', $kec->id));
-
-            $diskrining   = (clone $screenKec)->distinct('pus_profile_id')->count('pus_profile_id');
-            $totalMupar   = (clone $screenKec)->where('is_mupar', true)->count();
-            $totalNonMupar = (clone $screenKec)->where('is_mupar', false)->count();
-
-            $muparSudah   = (clone $screenKec)->where('is_mupar', true)->whereHas('interventions')->count();
-            $muparBelum   = $totalMupar - $muparSudah;
-            $nonSudah     = (clone $screenKec)->where('is_mupar', false)->whereHas('interventions')->count();
-            $nonBelum     = $totalNonMupar - $nonSudah;
-
-            return [
-                'id'            => $kec->id,
-                'name'          => $kec->name,
-                'total_pus'     => $totalPusKec,
-                'diskrining'    => $diskrining,
-                'belum_skrining'=> $totalPusKec - $diskrining,
-                'total_mupar'   => $totalMupar,
-                'total_non_mupar' => $totalNonMupar,
-                'mupar_sudah'   => $muparSudah,
-                'mupar_belum'   => $muparBelum,
-                'non_sudah'     => $nonSudah,
-                'non_belum'     => $nonBelum,
-            ];
-        });
-
-        // 9. Recent Interventions
-        $recentInterventions = Intervention::with(['screening.pusProfile.kecamatan', 'screening.pusProfile.desa', 'user'])
+        // 4. Recent Interventions with eager loading
+        $recentInterventions = Intervention::with([
+            'screening.pusProfile.kecamatan',
+            'screening.pusProfile.desa',
+            'user',
+        ])
             ->latest('tanggal_kunjungan')
             ->take(5)
             ->get();
 
-        return [
-            'isAdmin'              => $isAdmin,
-            'kecamatans'           => $kecamatans,
-            'desas'                => $desas,
-            'totalPus'             => $totalPus,
-            'totalScreened'        => $totalScreened,
-            'totalBelumSkrining'   => $totalBelumSkrining,
-            // MERAH
-            'merahMupar'           => $merahMupar,
-            'merahNonMupar'        => $merahNonMupar,
-            'merahMuparSudah'      => $merahMuparSudah,
-            'merahMuparBelum'      => $merahMuparBelum,
-            'merahNonSudah'        => $merahNonSudah,
-            'merahNonBelum'        => $merahNonBelum,
-            // KUNING
-            'kuningMupar'          => $kuningMupar,
-            'kuningNonMupar'       => $kuningNonMupar,
-            'kuningMuparSudah'     => $kuningMuparSudah,
-            'kuningMuparBelum'     => $kuningMuparBelum,
-            'kuningNonSudah'       => $kuningNonSudah,
-            'kuningNonBelum'       => $kuningNonBelum,
-            // HIJAU
-            'hijauMupar'           => $hijauMupar,
-            'hijauNonMupar'        => $hijauNonMupar,
-            'hijauMuparSudah'      => $hijauMuparSudah,
-            'hijauMuparBelum'      => $hijauMuparBelum,
-            'hijauNonSudah'        => $hijauNonSudah,
-            'hijauNonBelum'        => $hijauNonBelum,
-            // Table
-            'kecamatanStats'       => $kecamatanStats,
-            'recentInterventions'  => $recentInterventions,
-        ];
+        return array_merge([
+            'isAdmin' => $isAdmin,
+            'kecamatans' => $kecamatans,
+            'desas' => $desas,
+            'kecamatanStats' => $kecamatanStats,
+            'recentInterventions' => $recentInterventions,
+        ], $summaryAndBlocks);
     }
 };
 ?>
@@ -557,9 +457,16 @@ new #[Title('Dashboard | SI-MENTILIN')] class extends Component
     </div>
 
     {{-- ════════════════════════════════════════════════════════════
-         SECTION 3: REKAPITULASI PER KECAMATAN (TABEL LENGKAP)
+         SECTION 3: REKAPITULASI PER KECAMATAN (ISLAND)
          ════════════════════════════════════════════════════════════ --}}
-    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    @island(name: 'kecamatan-rekap')
+        @placeholder
+            <div class="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-200 dark:border-slate-700 animate-pulse text-center">
+                <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mx-auto mb-4"></div>
+                <div class="h-32 bg-slate-100 dark:bg-slate-700/50 rounded-xl"></div>
+            </div>
+        @endplaceholder
+        <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
 
         <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -691,7 +598,8 @@ new #[Title('Dashboard | SI-MENTILIN')] class extends Component
                 @endif
             </table>
         </div>
-    </div>
+        </div>
+    @endisland
 
     {{-- ════════════════════════════════════════════════════════════
          SECTION 4: AKTIVITAS INTERVENSI TERAKHIR

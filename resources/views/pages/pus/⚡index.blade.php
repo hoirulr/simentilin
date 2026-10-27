@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\Desa;
 use App\Models\Kecamatan;
 use App\Models\PusProfile;
 use App\Services\ScreeningCalculatorService;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -108,6 +110,7 @@ new class extends Component
 
     public function openCreateModal(): void
     {
+        $this->authorize('create', PusProfile::class);
         $this->resetValidation();
         $this->nama_istri = '';
         $this->nama_suami = '';
@@ -127,36 +130,77 @@ new class extends Component
 
     public function savePus(ScreeningCalculatorService $calculator): void
     {
-        $validated = $this->validate([
+        $this->authorize('create', PusProfile::class);
+
+        $user = auth()->user();
+        if (! $user) {
+            abort(403, 'Akses tidak diizinkan. Silakan login terlebih dahulu.');
+        }
+
+        $isAdmin = $user->isAdminDinas();
+
+        $rules = [
             'nama_istri' => 'required|string|max:150',
             'nama_suami' => 'required|string|max:150',
             'tanggal_lahir_istri' => 'required|date|before:today',
             'jumlah_anak_lahir_hidup' => 'required|integer|min:0|max:20',
-            'new_kecamatan_id' => 'required|exists:kecamatans,id',
-            'new_desa_id' => 'required|exists:desas,id',
             'rt_rw' => 'nullable|string|max:50',
             'alamat' => 'nullable|string|max:500',
-        ], [
+        ];
+
+        if ($isAdmin) {
+            $rules['new_kecamatan_id'] = 'required|exists:kecamatans,id';
+            $rules['new_desa_id'] = [
+                'required',
+                Rule::exists('desas', 'id')->where('kecamatan_id', $this->new_kecamatan_id),
+            ];
+        } else {
+            // Petugas lapangan: wilayah terkunci dari penugasan pengguna
+            $rules['new_kecamatan_id'] = 'nullable';
+            if (! $user->desa_id) {
+                // Koordinator kecamatan: desa harus milik kecamatan penugasannya
+                $rules['new_desa_id'] = [
+                    'required',
+                    Rule::exists('desas', 'id')->where('kecamatan_id', $user->kecamatan_id),
+                ];
+            } else {
+                $rules['new_desa_id'] = 'nullable';
+            }
+        }
+
+        $validated = $this->validate($rules, [
             'nama_istri.required' => 'Nama istri wajib diisi.',
             'nama_suami.required' => 'Nama suami wajib diisi.',
             'tanggal_lahir_istri.required' => 'Tanggal lahir istri wajib diisi.',
             'new_kecamatan_id.required' => 'Kecamatan wajib dipilih.',
             'new_desa_id.required' => 'Desa wajib dipilih.',
+            'new_desa_id.exists' => 'Desa tidak valid atau bukan bagian dari kecamatan yang dipilih.',
         ]);
 
-        $userId = auth()->id() ?? \App\Models\User::first()?->id ?? 1;
+        $kecamatanId = $isAdmin ? (int) $validated['new_kecamatan_id'] : (int) $user->kecamatan_id;
+        $desaId = $isAdmin
+            ? (int) $validated['new_desa_id']
+            : ($user->desa_id ? (int) $user->desa_id : (int) ($validated['new_desa_id'] ?? $this->new_desa_id));
 
         $pus = PusProfile::create([
-            'user_id' => $userId,
-            'kecamatan_id' => $validated['new_kecamatan_id'],
-            'desa_id' => $validated['new_desa_id'],
+            'user_id' => $user->id,
+            'kecamatan_id' => $kecamatanId,
+            'desa_id' => $desaId,
             'nama_istri' => $validated['nama_istri'],
             'nama_suami' => $validated['nama_suami'],
             'tanggal_lahir_istri' => $validated['tanggal_lahir_istri'],
             'jumlah_anak_lahir_hidup' => $validated['jumlah_anak_lahir_hidup'],
-            'rt_rw' => $validated['rt_rw'],
-            'alamat' => $validated['alamat'],
+            'rt_rw' => $validated['rt_rw'] ?? null,
+            'alamat' => $validated['alamat'] ?? null,
         ]);
+
+        AuditLog::log(
+            'create_pus',
+            "Mendaftarkan profil PUS baru: Ny. {$pus->nama_istri} / Tn. {$pus->nama_suami}",
+            $pus,
+            null,
+            $pus->only(['nama_istri', 'nama_suami', 'kecamatan_id', 'desa_id', 'jumlah_anak_lahir_hidup'])
+        );
 
         $this->showCreateModal = false;
         session()->flash('success', "Profil PUS Ny. {$pus->nama_istri} berhasil didaftarkan! Silakan lanjutkan skrining 5 indikator.");
@@ -187,36 +231,63 @@ new class extends Component
 
     public function updatePus(): void
     {
-        $validated = $this->validate([
+        $pus = PusProfile::forCurrentUser()->findOrFail($this->editing_pus_id);
+        $this->authorize('update', $pus);
+
+        $user = auth()->user();
+        $isAdmin = $user && $user->isAdminDinas();
+
+        $rules = [
             'edit_nama_istri' => 'required|string|max:150',
             'edit_nama_suami' => 'required|string|max:150',
             'edit_tanggal_lahir_istri' => 'required|date|before:today',
             'edit_jumlah_anak_lahir_hidup' => 'required|integer|min:0|max:20',
-            'edit_kecamatan_id' => 'required|exists:kecamatans,id',
-            'edit_desa_id' => 'required|exists:desas,id',
             'edit_rt_rw' => 'nullable|string|max:50',
             'edit_alamat' => 'nullable|string|max:500',
-        ], [
+        ];
+
+        if ($isAdmin) {
+            $rules['edit_kecamatan_id'] = 'required|exists:kecamatans,id';
+            $rules['edit_desa_id'] = [
+                'required',
+                Rule::exists('desas', 'id')->where('kecamatan_id', $this->edit_kecamatan_id),
+            ];
+        }
+
+        $validated = $this->validate($rules, [
             'edit_nama_istri.required' => 'Nama istri wajib diisi.',
             'edit_nama_suami.required' => 'Nama suami wajib diisi.',
             'edit_tanggal_lahir_istri.required' => 'Tanggal lahir istri wajib diisi.',
             'edit_kecamatan_id.required' => 'Kecamatan wajib dipilih.',
             'edit_desa_id.required' => 'Desa wajib dipilih.',
+            'edit_desa_id.exists' => 'Desa tidak valid atau bukan bagian dari kecamatan yang dipilih.',
         ]);
 
-        $pus = PusProfile::forCurrentUser()->findOrFail($this->editing_pus_id);
-        $this->authorize('update', $pus);
-
-        $pus->update([
+        $updateData = [
             'nama_istri' => $validated['edit_nama_istri'],
             'nama_suami' => $validated['edit_nama_suami'],
             'tanggal_lahir_istri' => $validated['edit_tanggal_lahir_istri'],
             'jumlah_anak_lahir_hidup' => $validated['edit_jumlah_anak_lahir_hidup'],
-            'kecamatan_id' => $validated['edit_kecamatan_id'],
-            'desa_id' => $validated['edit_desa_id'],
-            'rt_rw' => $validated['edit_rt_rw'],
-            'alamat' => $validated['edit_alamat'],
-        ]);
+            'rt_rw' => $validated['edit_rt_rw'] ?? null,
+            'alamat' => $validated['edit_alamat'] ?? null,
+        ];
+
+        // Territory is strictly immutable for field workers; admin can change only via valid relation
+        if ($isAdmin) {
+            $updateData['kecamatan_id'] = (int) $validated['edit_kecamatan_id'];
+            $updateData['desa_id'] = (int) $validated['edit_desa_id'];
+        }
+
+        $oldValues = $pus->only(['nama_istri', 'nama_suami', 'tanggal_lahir_istri', 'jumlah_anak_lahir_hidup', 'kecamatan_id', 'desa_id', 'rt_rw', 'alamat']);
+        $pus->update($updateData);
+
+        AuditLog::log(
+            'update_pus',
+            "Memperbarui profil PUS Ny. {$pus->nama_istri}",
+            $pus,
+            $oldValues,
+            $pus->only(array_keys($oldValues))
+        );
 
         $this->showEditModal = false;
         $this->editing_pus_id = null;
@@ -243,7 +314,18 @@ new class extends Component
         $pus = PusProfile::forCurrentUser()->findOrFail($id);
         $this->authorize('delete', $pus);
 
+        $oldValues = $pus->toArray();
+        $pusName = $pus->nama_istri;
         $pus->delete();
+
+        AuditLog::log(
+            'delete_pus',
+            "Menghapus profil PUS Ny. {$pusName}",
+            null,
+            $oldValues,
+            null
+        );
+
         session()->flash('success', "Data profil PUS berhasil dihapus.");
     }
 
@@ -340,7 +422,10 @@ new class extends Component
                 ->find($this->detail_pus_id);
         }
 
+        $isAdmin = ! $user || $user->isAdminDinas();
+
         return compact(
+            'isAdmin',
             'pusList',
             'totalPus',
             'totalMupar',
@@ -888,35 +973,68 @@ new class extends Component
                         @endif
 
                         <!-- Wilayah Kecamatan & Desa -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                                    Kecamatan <span class="text-red-500">*</span>
-                                </label>
-                                <select wire:model.live="new_kecamatan_id"
-                                        class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
-                                    <option value="">Pilih Kecamatan</option>
-                                    @foreach($kecamatans as $kec)
-                                        <option value="{{ $kec->id }}">{{ $kec->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('new_kecamatan_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        @if(! $isAdmin && auth()->user()?->desa_id)
+                            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs">
+                                <div class="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                                    <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                    <span class="font-bold">Wilayah Penugasan:</span>
+                                    <span>{{ auth()->user()->kecamatan?->name ?? '-' }} &bull; {{ auth()->user()->desa?->name ?? '-' }}</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">PUS otomatis terdaftar pada desa penugasan Anda.</p>
                             </div>
+                        @elseif(! $isAdmin)
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs">
+                                    <span class="font-bold text-slate-700 dark:text-slate-300">Kecamatan Penugasan:</span>
+                                    <p class="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">{{ auth()->user()->kecamatan?->name ?? '-' }}</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                        Desa / Kelurahan <span class="text-red-500">*</span>
+                                    </label>
+                                    <select wire:model="new_desa_id"
+                                            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
+                                        <option value="">Pilih Desa di Kecamatan Anda</option>
+                                        @foreach($modalDesas as $desa)
+                                            <option value="{{ $desa->id }}">{{ $desa->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('new_desa_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </div>
+                            </div>
+                        @else
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                        Kecamatan <span class="text-red-500">*</span>
+                                    </label>
+                                    <select wire:model.live="new_kecamatan_id"
+                                            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
+                                        <option value="">Pilih Kecamatan</option>
+                                        @foreach($kecamatans as $kec)
+                                            <option value="{{ $kec->id }}">{{ $kec->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('new_kecamatan_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </div>
 
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                                    Desa / Kelurahan <span class="text-red-500">*</span>
-                                </label>
-                                <select wire:model="new_desa_id"
-                                        class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
-                                    <option value="">Pilih Desa / Kelurahan</option>
-                                    @foreach($modalDesas as $desa)
-                                        <option value="{{ $desa->id }}">{{ $desa->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('new_desa_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                        Desa / Kelurahan <span class="text-red-500">*</span>
+                                    </label>
+                                    <select wire:model="new_desa_id"
+                                            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
+                                        <option value="">Pilih Desa / Kelurahan</option>
+                                        @foreach($modalDesas as $desa)
+                                            <option value="{{ $desa->id }}">{{ $desa->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('new_desa_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </div>
                             </div>
-                        </div>
+                        @endif
 
                         <!-- RT / RW & Alamat -->
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1078,35 +1196,48 @@ new class extends Component
                         @endif
 
                         <!-- Wilayah Kecamatan & Desa -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                                    Kecamatan <span class="text-red-500">*</span>
-                                </label>
-                                <select wire:model.live="edit_kecamatan_id"
-                                        class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
-                                    <option value="">Pilih Kecamatan</option>
-                                    @foreach($kecamatans as $kec)
-                                        <option value="{{ $kec->id }}">{{ $kec->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('edit_kecamatan_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        @if(! $isAdmin)
+                            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs">
+                                <div class="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                                    <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                    <span class="font-bold">Wilayah Terdaftar:</span>
+                                    <span>{{ $kecamatans->firstWhere('id', $edit_kecamatan_id)?->name ?? '-' }} &bull; {{ $editModalDesas->firstWhere('id', $edit_desa_id)?->name ?? '-' }}</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Wilayah domisili dikunci sesuai penugasan petugas lapangan dan tidak dapat dipindahkan.</p>
                             </div>
+                        @else
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                        Kecamatan <span class="text-red-500">*</span>
+                                    </label>
+                                    <select wire:model.live="edit_kecamatan_id"
+                                            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
+                                        <option value="">Pilih Kecamatan</option>
+                                        @foreach($kecamatans as $kec)
+                                            <option value="{{ $kec->id }}">{{ $kec->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('edit_kecamatan_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </div>
 
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                                    Desa / Kelurahan <span class="text-red-500">*</span>
-                                </label>
-                                <select wire:model="edit_desa_id"
-                                        class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
-                                    <option value="">Pilih Desa / Kelurahan</option>
-                                    @foreach($editModalDesas as $desa)
-                                        <option value="{{ $desa->id }}">{{ $desa->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('edit_desa_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                                        Desa / Kelurahan <span class="text-red-500">*</span>
+                                    </label>
+                                    <select wire:model="edit_desa_id"
+                                            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-[#008060]">
+                                        <option value="">Pilih Desa / Kelurahan</option>
+                                        @foreach($editModalDesas as $desa)
+                                            <option value="{{ $desa->id }}">{{ $desa->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('edit_desa_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </div>
                             </div>
-                        </div>
+                        @endif
 
                         <!-- RT / RW & Alamat -->
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">

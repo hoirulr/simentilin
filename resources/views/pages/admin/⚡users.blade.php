@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\Desa;
 use App\Models\Kecamatan;
 use App\Models\User;
@@ -50,6 +51,11 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
     public ?int $deletingUserId = null;
     public string $deletingUserName = '';
 
+    public function mount(): void
+    {
+        $this->authorize('viewAny', User::class);
+    }
+
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -89,12 +95,13 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
     // ──────────────── CREATE USER ────────────────
     public function openCreateModal(): void
     {
+        $this->authorize('create', User::class);
         $this->resetValidation();
         $this->editingUserId = null;
         $this->name = '';
         $this->email = '';
-        $this->password = 'password123';
-        $this->password_confirmation = 'password123';
+        $this->password = '';
+        $this->password_confirmation = '';
         $this->role = UserRole::PETUGAS_LAPANGAN->value;
         $this->kecamatan_id = Kecamatan::first()?->id;
         $this->desa_id = null;
@@ -104,6 +111,8 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
 
     public function createUser(): void
     {
+        $this->authorize('create', User::class);
+
         $validated = $this->validate([
             'name' => 'required|string|max:150',
             'email' => 'required|email|max:150|unique:users,email',
@@ -114,7 +123,10 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
                 'nullable',
                 'exists:kecamatans,id',
             ],
-            'desa_id' => 'nullable|exists:desas,id',
+            'desa_id' => [
+                'nullable',
+                Rule::exists('desas', 'id')->where('kecamatan_id', $this->kecamatan_id),
+            ],
         ], [
             'name.required' => 'Nama lengkap pengguna wajib diisi.',
             'email.required' => 'Alamat email dinas wajib diisi.',
@@ -125,18 +137,27 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
             'password.confirmed' => 'Konfirmasi kata sandi tidak cocok.',
             'role.required' => 'Peran pengguna wajib dipilih.',
             'kecamatan_id.required_if' => 'Wilayah kecamatan penugasan wajib dipilih untuk Petugas Lapangan.',
+            'desa_id.exists' => 'Desa tidak valid atau bukan bagian dari kecamatan yang dipilih.',
         ]);
 
         $isPetugas = $validated['role'] === UserRole::PETUGAS_LAPANGAN->value || $validated['role'] === UserRole::PETUGAS_LAPANGAN;
 
-        User::create([
+        $newUser = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
+            'is_active' => true,
             'kecamatan_id' => $isPetugas ? $validated['kecamatan_id'] : null,
             'desa_id' => $isPetugas ? $validated['desa_id'] : null,
         ]);
+
+        AuditLog::log(
+            action: 'create_user',
+            summary: "Admin membuat akun pengguna baru: {$newUser->name} ({$newUser->email})",
+            auditable: $newUser,
+            newValues: ['name' => $newUser->name, 'email' => $newUser->email, 'role' => $newUser->role->value]
+        );
 
         $this->showCreateModal = false;
         session()->flash('success', "Akun pengguna '{$validated['name']}' berhasil ditambahkan ke dalam sistem!");
@@ -147,6 +168,7 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
     {
         $this->resetValidation();
         $user = User::findOrFail($userId);
+        $this->authorize('update', $user);
 
         $this->editingUserId = $user->id;
         $this->name = $user->name;
@@ -160,6 +182,9 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
 
     public function updateUser(): void
     {
+        $user = User::findOrFail($this->editingUserId);
+        $this->authorize('update', $user);
+
         $validated = $this->validate([
             'name' => 'required|string|max:150',
             'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($this->editingUserId)],
@@ -169,16 +194,27 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
                 'nullable',
                 'exists:kecamatans,id',
             ],
-            'desa_id' => 'nullable|exists:desas,id',
+            'desa_id' => [
+                'nullable',
+                Rule::exists('desas', 'id')->where('kecamatan_id', $this->kecamatan_id),
+            ],
         ], [
             'name.required' => 'Nama pengguna wajib diisi.',
             'email.required' => 'Email dinas wajib diisi.',
             'email.unique' => 'Email ini telah digunakan oleh pengguna lain.',
             'kecamatan_id.required_if' => 'Kecamatan wajib dipilih untuk Petugas Lapangan.',
+            'desa_id.exists' => 'Desa tidak valid atau bukan bagian dari kecamatan yang dipilih.',
         ]);
 
-        $user = User::findOrFail($this->editingUserId);
         $isPetugas = $validated['role'] === UserRole::PETUGAS_LAPANGAN->value || $validated['role'] === UserRole::PETUGAS_LAPANGAN;
+
+        $oldValues = [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role->value,
+            'kecamatan_id' => $user->kecamatan_id,
+            'desa_id' => $user->desa_id,
+        ];
 
         $user->update([
             'name' => $validated['name'],
@@ -187,6 +223,14 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
             'kecamatan_id' => $isPetugas ? $validated['kecamatan_id'] : null,
             'desa_id' => $isPetugas ? $validated['desa_id'] : null,
         ]);
+
+        AuditLog::log(
+            action: 'update_user',
+            summary: "Admin memperbarui profil pengguna: {$user->name} (ID: {$user->id})",
+            auditable: $user,
+            oldValues: $oldValues,
+            newValues: ['name' => $user->name, 'email' => $user->email, 'role' => $user->role->value]
+        );
 
         $this->showEditModal = false;
         session()->flash('success', "Data pengguna '{$user->name}' berhasil diperbarui.");
@@ -197,6 +241,7 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
     {
         $this->resetValidation();
         $user = User::findOrFail($userId);
+        $this->authorize('update', $user);
 
         $this->targetUserId = $user->id;
         $this->targetUserName = $user->name;
@@ -208,6 +253,9 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
 
     public function resetPassword(): void
     {
+        $user = User::findOrFail($this->targetUserId);
+        $this->authorize('update', $user);
+
         $this->validate([
             'new_password' => 'required|string|min:8|confirmed',
         ], [
@@ -216,35 +264,28 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
             'new_password.confirmed' => 'Konfirmasi kata sandi tidak cocok.',
         ]);
 
-        $user = User::findOrFail($this->targetUserId);
         $user->update([
             'password' => Hash::make($this->new_password),
         ]);
 
+        AuditLog::log(
+            action: 'reset_password',
+            summary: "Admin mengatur ulang kata sandi pengguna: {$user->name} (ID: {$user->id})",
+            auditable: $user
+        );
+
         $this->showResetPasswordModal = false;
+        $this->new_password = '';
+        $this->new_password_confirmation = '';
         session()->flash('success', "Kata sandi untuk pengguna '{$user->name}' berhasil diatur ulang.");
-    }
-
-    public function resetToDefaultPassword(): void
-    {
-        $user = User::findOrFail($this->targetUserId);
-        $user->update([
-            'password' => Hash::make('password123'),
-        ]);
-
-        $this->showResetPasswordModal = false;
-        session()->flash('success', "Kata sandi untuk '{$user->name}' telah direset ke default ('password123').");
     }
 
     // ──────────────── DELETE USER ────────────────
     public function confirmDelete(int $userId): void
     {
-        if ($userId === auth()->id()) {
-            session()->flash('error', 'Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif digunakan.');
-            return;
-        }
-
         $user = User::findOrFail($userId);
+        $this->authorize('delete', $user);
+
         $this->deletingUserId = $user->id;
         $this->deletingUserName = $user->name;
         $this->showDeleteModal = true;
@@ -252,18 +293,50 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
 
     public function deleteUser(): void
     {
-        if ($this->deletingUserId === auth()->id()) {
-            session()->flash('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
+        $user = User::withCount(['pusProfiles', 'screenings', 'interventions'])->findOrFail($this->deletingUserId);
+        $this->authorize('delete', $user);
+
+        if ($user->pus_profiles_count > 0 || $user->screenings_count > 0 || $user->interventions_count > 0) {
+            session()->flash('error', "Pengguna '{$user->name}' tidak dapat dihapus karena memiliki data historis ({$user->pus_profiles_count} profil PUS, {$user->screenings_count} skrining, {$user->interventions_count} intervensi). Silakan nonaktifkan akun sebagai gantinya.");
             $this->showDeleteModal = false;
             return;
         }
 
-        $user = User::findOrFail($this->deletingUserId);
         $userName = $user->name;
         $user->delete();
 
+        AuditLog::log(
+            action: 'delete_user',
+            summary: "Admin menghapus akun pengguna: {$userName} (ID: {$this->deletingUserId})",
+            auditable: $user
+        );
+
         $this->showDeleteModal = false;
         session()->flash('success', "Akun pengguna '{$userName}' berhasil dihapus dari sistem.");
+    }
+
+    public function toggleUserStatus(int $userId): void
+    {
+        $user = User::findOrFail($userId);
+        $this->authorize('update', $user);
+
+        if ($user->id === auth()->id()) {
+            session()->flash('error', 'Anda tidak dapat menonaktifkan akun Anda sendiri.');
+            return;
+        }
+
+        $user->is_active = ! $user->is_active;
+        $user->save();
+
+        $statusStr = $user->is_active ? 'diaktifkan' : 'dinonaktifkan';
+
+        AuditLog::log(
+            action: 'toggle_user_status',
+            summary: "Admin mengubah status akun {$user->name} menjadi {$statusStr}",
+            auditable: $user
+        );
+
+        session()->flash('success', "Akun '{$user->name}' berhasil {$statusStr}.");
     }
 
     public function with(): array
@@ -1043,24 +1116,7 @@ new #[Title('Manajemen Pengguna | SI-MENTILIN')] class extends Component
                         </button>
                     </div>
 
-                    <!-- Quick Reset Button -->
-                    <div class="mt-4 p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-bold text-amber-900 dark:text-amber-300">Opsi Cepat: Reset ke Default</p>
-                            <p class="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">Atur kata sandi jadi <code class="bg-amber-200/50 dark:bg-amber-900/60 px-1 py-0.5 rounded font-mono">password123</code></p>
-                        </div>
-                        <button wire:click="resetToDefaultPassword"
-                                type="button"
-                                class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow transition">
-                            Reset Default
-                        </button>
-                    </div>
 
-                    <div class="relative flex py-3 items-center">
-                        <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
-                        <span class="flex-shrink mx-3 text-[11px] text-slate-400 uppercase font-semibold">Atau Buat Kata Sandi Kustom</span>
-                        <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
-                    </div>
 
                     <form wire:submit="resetPassword" class="space-y-4">
                         <div>

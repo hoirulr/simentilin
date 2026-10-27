@@ -82,7 +82,11 @@ new class extends Component
 
     public function openDetailModal(int $screeningId): void
     {
-        $this->activeScreening = Screening::with(['pusProfile.kecamatan', 'pusProfile.desa', 'user'])->findOrFail($screeningId);
+        $this->activeScreening = Screening::with(['pusProfile.kecamatan', 'pusProfile.desa', 'user'])
+            ->forCurrentUser(auth()->user())
+            ->findOrFail($screeningId);
+
+        $this->authorize('view', $this->activeScreening);
         $this->showDetailModal = true;
     }
 

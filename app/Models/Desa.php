@@ -39,4 +39,12 @@ class Desa extends Model
     {
         return $this->hasMany(PusProfile::class);
     }
+
+    /**
+     * @return HasMany<User, $this>
+     */
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
 }

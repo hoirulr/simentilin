@@ -1,12 +1,35 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\Intervention;
 use App\Models\Screening;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
 {
+    public const JENIS_TINDAKAN_OPTIONS = [
+        'KIE / Konseling KB',
+        'Kunjungan Rumah / Home Visit',
+        'Fasilitasi Pelayanan KB di Faskes',
+        'Pemberian Kontrasepsi Ulang',
+        'Pendampingan Pasca Persalinan / Keguguran',
+        'Advokasi Suami / Tokoh Keluarga',
+        'Lainnya',
+    ];
+
+    public const METODE_KB_MODERN_OPTIONS = [
+        'IUD / AKDR',
+        'Implan / Susuk',
+        'MOW (Tubektomi)',
+        'MOP (Vasektomi)',
+        'Suntik KB 3 Bulanan',
+        'Suntik KB 1 Bulanan',
+        'Pil KB',
+        'Kondom',
+    ];
+
     public bool $isOpen = false;
     public ?int $screeningId = null;
     public ?Screening $screening = null;
@@ -39,7 +62,11 @@ new class extends Component
     public function loadScreening(int $screeningId): void
     {
         $this->screeningId = $screeningId;
-        $this->screening = Screening::with(['pusProfile.kecamatan', 'pusProfile.desa', 'user'])->find($screeningId);
+        $this->screening = Screening::with(['pusProfile.kecamatan', 'pusProfile.desa', 'user'])
+            ->forCurrentUser(auth()->user())
+            ->findOrFail($screeningId);
+
+        $this->authorize('create', [Intervention::class, $this->screening]);
         $this->tanggal_kunjungan = now()->format('Y-m-d');
 
         if ($this->screening && $this->screening->p3_status_kontrasepsi <= 1) {
@@ -81,22 +108,52 @@ new class extends Component
 
     public function save(): void
     {
-        $this->validate([
-            'screeningId' => ['required', 'exists:screenings,id'],
-            'tanggal_kunjungan' => ['required', 'date'],
-            'jenis_tindakan' => ['required', 'string', 'max:100'],
+        $rules = [
+            'screeningId' => ['required', 'integer'],
+            'tanggal_kunjungan' => ['required', 'date', 'before_or_equal:today'],
+            'jenis_tindakan' => ['required', 'string', Rule::in(self::JENIS_TINDAKAN_OPTIONS)],
             'deskripsi_tindakan' => ['nullable', 'string', 'max:1000'],
-            'durasi_menit' => ['required', 'integer', 'min:1', 'max:480'],
-            'biaya_operasional' => ['required', 'numeric', 'min:0'],
+            'durasi_menit' => ['required', 'integer', 'min:5', 'max:480'],
+            'biaya_operasional' => ['required', 'numeric', 'min:0', 'max:10000000'],
             'menggunakan_kb_modern' => ['boolean'],
-            'metode_kb' => ['nullable', 'string', 'max:100'],
+            'metode_kb' => [
+                $this->menggunakan_kb_modern ? 'required' : 'nullable',
+                'string',
+                $this->menggunakan_kb_modern ? Rule::in(self::METODE_KB_MODERN_OPTIONS) : 'nullable',
+            ],
             'catatan' => ['nullable', 'string', 'max:1000'],
-        ]);
+        ];
 
-        $authId = auth()->id() ?? ($this->screening?->user_id ?? 1);
+        $messages = [
+            'tanggal_kunjungan.required' => 'Tanggal kunjungan intervensi wajib diisi.',
+            'tanggal_kunjungan.before_or_equal' => 'Tanggal kunjungan intervensi tidak boleh di masa mendatang.',
+            'durasi_menit.required' => 'Durasi kunjungan wajib diisi.',
+            'durasi_menit.min' => 'Durasi kunjungan minimal 5 menit.',
+            'durasi_menit.max' => 'Durasi kunjungan maksimal 480 menit (8 jam).',
+            'biaya_operasional.required' => 'Biaya operasional wajib diisi.',
+            'biaya_operasional.min' => 'Biaya operasional tidak boleh bernilai negatif.',
+            'biaya_operasional.max' => 'Biaya operasional maksimal Rp 10.000.000 per intervensi.',
+            'jenis_tindakan.required' => 'Jenis tindakan petugas wajib dipilih.',
+            'jenis_tindakan.in' => 'Jenis tindakan yang dipilih tidak valid.',
+            'metode_kb.required' => 'Pilihan metode kontrasepsi modern wajib diisi jika akseptor menggunakan KB modern.',
+            'metode_kb.in' => 'Metode KB modern yang dipilih tidak sesuai standar BKKBN.',
+        ];
+
+        $this->validate($rules, $messages);
+
+        $screening = Screening::with(['pusProfile.kecamatan', 'pusProfile.desa', 'user'])
+            ->forCurrentUser(auth()->user())
+            ->findOrFail($this->screeningId);
+
+        $this->authorize('create', [Intervention::class, $screening]);
+
+        $authId = auth()->id();
+        if (! $authId) {
+            abort(403, 'Akses tidak diizinkan. Silakan login terlebih dahulu.');
+        }
 
         $intervention = Intervention::create([
-            'screening_id' => $this->screeningId,
+            'screening_id' => $screening->id,
             'user_id' => $authId,
             'tanggal_kunjungan' => $this->tanggal_kunjungan,
             'jenis_tindakan' => $this->jenis_tindakan,
@@ -109,6 +166,14 @@ new class extends Component
                 : ($this->metode_kb ?: 'Belum Ber-KB'),
             'catatan' => $this->catatan ?: null,
         ]);
+
+        AuditLog::log(
+            'create_intervention',
+            "Mencatat intervensi '{$intervention->jenis_tindakan}' untuk Ny. {$screening->pusProfile->nama_istri}",
+            $intervention,
+            null,
+            $intervention->only(['screening_id', 'tanggal_kunjungan', 'jenis_tindakan', 'durasi_menit', 'biaya_operasional', 'menggunakan_kb_modern', 'metode_kb'])
+        );
 
         $this->dispatch('intervention-saved', interventionId: $intervention->id);
         $this->dispatch('notify', message: 'Data intervensi & pendampingan berhasil disimpan!');

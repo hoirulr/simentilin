@@ -155,6 +155,51 @@ class EconomicMetricsService
     }
 
     /**
+     * Calculate PIM III metrics for all districts in a single aggregated query (eliminates N+1).
+     *
+     * @return array<int, array{ketepatan_sasaran: float, biaya_per_pus_prioritas: float, efisiensi_waktu: float, konversi_kb_modern: float, total_reached: int, total_cost: float}>
+     */
+    public function allDistrictsMetrics(): array
+    {
+        $rows = DB::table('interventions')
+            ->join('screenings', 'interventions.screening_id', '=', 'screenings.id')
+            ->join('pus_profiles', 'screenings.pus_profile_id', '=', 'pus_profiles.id')
+            ->selectRaw('
+                pus_profiles.kecamatan_id,
+                COUNT(DISTINCT screenings.pus_profile_id) as total_reached,
+                COUNT(DISTINCT CASE WHEN screenings.total_skor >= 7 THEN screenings.pus_profile_id END) as priority_reached,
+                SUM(interventions.biaya_operasional) as total_cost,
+                SUM(CASE WHEN screenings.total_skor >= 7 THEN interventions.biaya_operasional ELSE 0 END) as priority_cost,
+                AVG(interventions.durasi_menit) as avg_duration,
+                COUNT(DISTINCT CASE WHEN interventions.menggunakan_kb_modern = 1 THEN screenings.pus_profile_id END) as kb_modern_reached
+            ')
+            ->groupBy('pus_profiles.kecamatan_id')
+            ->get()
+            ->keyBy('kecamatan_id');
+
+        $out = [];
+        foreach ($rows as $kecId => $row) {
+            $totalReached = (int) ($row->total_reached ?? 0);
+            $priorityReached = (int) ($row->priority_reached ?? 0);
+            $totalCost = (float) ($row->total_cost ?? 0);
+            $priorityCost = (float) ($row->priority_cost ?? 0);
+            $avgDuration = (float) ($row->avg_duration ?? 0);
+            $kbModernReached = (int) ($row->kb_modern_reached ?? 0);
+
+            $out[$kecId] = [
+                'total_reached' => $totalReached,
+                'total_cost' => $totalCost,
+                'ketepatan_sasaran' => $totalReached > 0 ? round(($priorityReached / $totalReached) * 100, 2) : 0.0,
+                'biaya_per_pus_prioritas' => $priorityReached > 0 ? round($priorityCost / $priorityReached, 2) : 0.0,
+                'efisiensi_waktu' => round($avgDuration, 2),
+                'konversi_kb_modern' => $totalReached > 0 ? round(($kbModernReached / $totalReached) * 100, 2) : 0.0,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * Build the base query joining interventions with screenings and pus_profiles.
      *
      * @param  array{kecamatan_id?: int, desa_id?: int, start_date?: string, end_date?: string}  $filters

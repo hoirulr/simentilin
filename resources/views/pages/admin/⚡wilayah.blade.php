@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\Desa;
 use App\Models\Kecamatan;
 use App\Models\PusProfile;
@@ -43,6 +44,11 @@ new #[Title('Master Wilayah | SI-MENTILIN')] class extends Component
     public ?int $deletingDesaId = null;
     public string $deletingDesaName = '';
 
+    public function mount(): void
+    {
+        $this->authorize('viewAny', Kecamatan::class);
+    }
+
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -76,6 +82,8 @@ new #[Title('Master Wilayah | SI-MENTILIN')] class extends Component
     // ──────────────── DESA CRUD ────────────────
     public function openCreateDesaModal(): void
     {
+        $this->authorize('create', Desa::class);
+
         $this->resetValidation();
         $this->editingDesaId = null;
         $this->desa_kecamatan_id = $this->filter_kecamatan_id ?? Kecamatan::first()?->id;
@@ -92,6 +100,7 @@ new #[Title('Master Wilayah | SI-MENTILIN')] class extends Component
     {
         $this->resetValidation();
         $desa = Desa::findOrFail($desaId);
+        $this->authorize('update', $desa);
 
         $this->editingDesaId = $desa->id;
         $this->desa_kecamatan_id = $desa->kecamatan_id;
@@ -121,18 +130,27 @@ new #[Title('Master Wilayah | SI-MENTILIN')] class extends Component
 
         if ($this->editingDesaId) {
             $desa = Desa::findOrFail($this->editingDesaId);
+            $this->authorize('update', $desa);
+
+            $oldValues = $desa->only(['kecamatan_id', 'name', 'code']);
             $desa->update([
                 'kecamatan_id' => $validated['desa_kecamatan_id'],
                 'name' => $validated['desa_name'],
                 'code' => $validated['desa_code'],
             ]);
+
+            AuditLog::log('update_desa', "Memperbarui data master desa '{$desa->name}'", $desa, $oldValues, $desa->only(['kecamatan_id', 'name', 'code']));
             session()->flash('success', "Desa/Kelurahan '{$desa->name}' berhasil diperbarui.");
         } else {
+            $this->authorize('create', Desa::class);
+
             $desa = Desa::create([
                 'kecamatan_id' => $validated['desa_kecamatan_id'],
                 'name' => $validated['desa_name'],
                 'code' => $validated['desa_code'],
             ]);
+
+            AuditLog::log('create_desa', "Menambahkan master desa baru '{$desa->name}'", $desa, null, $desa->only(['kecamatan_id', 'name', 'code']));
             session()->flash('success', "Desa/Kelurahan '{$desa->name}' berhasil ditambahkan ke wilayah.");
         }
 
@@ -141,10 +159,11 @@ new #[Title('Master Wilayah | SI-MENTILIN')] class extends Component
 
     public function confirmDeleteDesa(int $desaId): void
     {
-        $desa = Desa::withCount('pusProfiles')->findOrFail($desaId);
+        $desa = Desa::withCount(['pusProfiles', 'users'])->findOrFail($desaId);
+        $this->authorize('delete', $desa);
 
-        if ($desa->pus_profiles_count > 0) {
-            session()->flash('error', "Desa '{$desa->name}' tidak dapat dihapus karena memiliki {$desa->pus_profiles_count} data profil PUS terdaftar.");
+        if ($desa->pus_profiles_count > 0 || $desa->users_count > 0) {
+            session()->flash('error', "Desa '{$desa->name}' tidak dapat dihapus karena masih terkait dengan {$desa->pus_profiles_count} data profil PUS atau {$desa->users_count} petugas aktif.");
             return;
         }
 
@@ -155,16 +174,20 @@ new #[Title('Master Wilayah | SI-MENTILIN')] class extends Component
 
     public function deleteDesa(): void
     {
-        $desa = Desa::withCount('pusProfiles')->findOrFail($this->deletingDesaId);
+        $desa = Desa::withCount(['pusProfiles', 'users'])->findOrFail($this->deletingDesaId);
+        $this->authorize('delete', $desa);
 
-        if ($desa->pus_profiles_count > 0) {
-            session()->flash('error', "Desa '{$desa->name}' tidak dapat dihapus karena memiliki data PUS.");
+        if ($desa->pus_profiles_count > 0 || $desa->users_count > 0) {
+            session()->flash('error', "Desa '{$desa->name}' tidak dapat dihapus karena masih terkait dengan data PUS atau petugas aktif.");
             $this->showDeleteDesaModal = false;
             return;
         }
 
+        $oldValues = $desa->toArray();
         $desaName = $desa->name;
         $desa->delete();
+
+        AuditLog::log('delete_desa', "Menghapus master desa '{$desaName}'", null, $oldValues, null);
 
         $this->showDeleteDesaModal = false;
         session()->flash('success', "Desa/Kelurahan '{$desaName}' berhasil dihapus.");
@@ -175,6 +198,7 @@ new #[Title('Master Wilayah | SI-MENTILIN')] class extends Component
     {
         $this->resetValidation();
         $kec = Kecamatan::findOrFail($kecamatanId);
+        $this->authorize('update', $kec);
 
         $this->editingKecamatanId = $kec->id;
         $this->kecamatan_name = $kec->name;
@@ -200,10 +224,15 @@ new #[Title('Master Wilayah | SI-MENTILIN')] class extends Component
         ]);
 
         $kec = Kecamatan::findOrFail($this->editingKecamatanId);
+        $this->authorize('update', $kec);
+
+        $oldValues = $kec->only(['name', 'code']);
         $kec->update([
             'name' => $validated['kecamatan_name'],
             'code' => $validated['kecamatan_code'],
         ]);
+
+        AuditLog::log('update_kecamatan', "Memperbarui data master kecamatan '{$kec->name}'", $kec, $oldValues, $kec->only(['name', 'code']));
 
         $this->showKecamatanModal = false;
         session()->flash('success', "Data Kecamatan '{$kec->name}' berhasil diperbarui.");

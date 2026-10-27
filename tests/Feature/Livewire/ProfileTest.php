@@ -12,7 +12,7 @@ beforeEach(function () {
     $this->user = User::factory()->create([
         'name' => 'Budi Santoso',
         'email' => 'budi.santoso@simentilin.bangka.go.id',
-        'password' => 'password123',
+        'password' => 'InitialSecPass2026!',
         'role' => UserRole::PETUGAS_LAPANGAN,
     ]);
 });
@@ -55,7 +55,7 @@ test('user can change password successfully with valid credentials', function ()
     $this->actingAs($this->user);
 
     Livewire::test('pages::profile.index')
-        ->set('current_password', 'password123')
+        ->set('current_password', 'InitialSecPass2026!')
         ->set('password', 'newsecretpass123')
         ->set('password_confirmation', 'newsecretpass123')
         ->call('updatePassword')

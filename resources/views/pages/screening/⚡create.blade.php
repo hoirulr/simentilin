@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\PriorityCategory;
+use App\Models\AuditLog;
 use App\Models\PusProfile;
 use App\Models\Screening;
 use App\Services\ScreeningCalculatorService;
@@ -45,21 +46,20 @@ new class extends Component
 
     public function selectPus(int $id, ScreeningCalculatorService $calculator): void
     {
-        $pus = PusProfile::with(['kecamatan', 'desa'])->forCurrentUser()->find($id);
+        $pus = PusProfile::with(['kecamatan', 'desa'])->forCurrentUser()->findOrFail($id);
+        $this->authorize('create', [Screening::class, $pus]);
 
-        if ($pus) {
-            $this->selectedPus = $pus;
-            $this->pus_id = $pus->id;
-            $this->usia_istri = $pus->usiaIstri();
-            $this->jumlah_anak = $pus->jumlah_anak_lahir_hidup;
+        $this->selectedPus = $pus;
+        $this->pus_id = $pus->id;
+        $this->usia_istri = $pus->usiaIstri();
+        $this->jumlah_anak = $pus->jumlah_anak_lahir_hidup;
 
-            // Recalculate automatic indicators P1, P2 and MUPAR flag
-            $this->p1 = $calculator->calculateP1($this->usia_istri);
-            $this->p2 = $calculator->calculateP2($this->jumlah_anak);
-            $this->is_mupar = $calculator->determineMupar($this->usia_istri, $this->jumlah_anak);
+        // Recalculate automatic indicators P1, P2 and MUPAR flag
+        $this->p1 = $calculator->calculateP1($this->usia_istri);
+        $this->p2 = $calculator->calculateP2($this->jumlah_anak);
+        $this->is_mupar = $calculator->determineMupar($this->usia_istri, $this->jumlah_anak);
 
-            $this->pusSearch = '';
-        }
+        $this->pusSearch = '';
     }
 
     public function clearSelectedPus(): void
@@ -76,11 +76,11 @@ new class extends Component
     public function saveScreening(ScreeningCalculatorService $calculator): void
     {
         $this->validate([
-            'pus_id' => 'required|exists:pus_profiles,id',
+            'pus_id' => 'required|integer',
             'p3' => 'required|integer|between:0,3',
             'p4' => 'required|integer|between:0,3',
             'p5' => 'required|integer|between:0,3',
-            'tanggal_skrining' => 'required|date',
+            'tanggal_skrining' => 'required|date|before_or_equal:today',
             'catatan' => 'nullable|string|max:1000',
         ], [
             'pus_id.required' => 'Pilih profil PUS yang akan diskrining terlebih dahulu.',
@@ -88,33 +88,39 @@ new class extends Component
             'p4.required' => 'Parameter P4 wajib dipilih.',
             'p5.required' => 'Parameter P5 wajib dipilih.',
             'tanggal_skrining.required' => 'Tanggal skrining wajib diisi.',
+            'tanggal_skrining.before_or_equal' => 'Tanggal skrining tidak boleh di masa mendatang.',
         ]);
 
-        if (! $this->selectedPus) {
-            $this->selectedPus = PusProfile::findOrFail($this->pus_id);
-            $this->usia_istri = $this->selectedPus->usiaIstri();
-            $this->jumlah_anak = $this->selectedPus->jumlah_anak_lahir_hidup;
-        }
+        // Always fetch from database scoped to current user's territory (anti-bypass)
+        $pus = PusProfile::with(['kecamatan', 'desa'])->forCurrentUser()->findOrFail($this->pus_id);
+        $this->authorize('create', [Screening::class, $pus]);
+
+        // Recalculate strictly from server-side PUS database record
+        $usiaIstri = $pus->usiaIstri();
+        $jumlahAnak = (int) $pus->jumlah_anak_lahir_hidup;
 
         // Run full calculation pipeline
         $calc = $calculator->calculate(
-            $this->usia_istri,
-            $this->jumlah_anak,
-            $this->p3,
-            $this->p4,
-            $this->p5,
+            $usiaIstri,
+            $jumlahAnak,
+            (int) $this->p3,
+            (int) $this->p4,
+            (int) $this->p5,
         );
 
-        $userId = auth()->id() ?? \App\Models\User::first()?->id ?? 1;
+        $userId = auth()->id();
+        if (! $userId) {
+            abort(403, 'Akses tidak diizinkan. Silakan login terlebih dahulu.');
+        }
 
         $screening = Screening::create([
-            'pus_profile_id' => $this->pus_id,
+            'pus_profile_id' => $pus->id,
             'user_id' => $userId,
             'p1_usia_istri' => $calc['p1_usia_istri'],
             'p2_jumlah_anak' => $calc['p2_jumlah_anak'],
-            'p3_status_kontrasepsi' => $this->p3,
-            'p4_tujuan_reproduksi' => $this->p4,
-            'p5_risiko_kehamilan' => $this->p5,
+            'p3_status_kontrasepsi' => (int) $this->p3,
+            'p4_tujuan_reproduksi' => (int) $this->p4,
+            'p5_risiko_kehamilan' => (int) $this->p5,
             'total_skor' => $calc['total_skor'],
             'kategori' => $calc['kategori']->value,
             'is_mupar' => $calc['is_mupar'],
@@ -124,7 +130,15 @@ new class extends Component
             'catatan' => $this->catatan ?: null,
         ]);
 
-        session()->flash('success', "Skrining Ny. {$this->selectedPus->nama_istri} berhasil disimpan! Skor: {$screening->total_skor}/15 ({$screening->prioritas_akhir}).");
+        AuditLog::log(
+            'create_screening',
+            "Melakukan skrining 5 indikator untuk Ny. {$pus->nama_istri} (Skor: {$screening->total_skor}/15 - {$screening->prioritas_akhir})",
+            $screening,
+            null,
+            $screening->only(['pus_profile_id', 'total_skor', 'kategori', 'is_mupar', 'prioritas_akhir', 'tanggal_skrining'])
+        );
+
+        session()->flash('success', "Skrining Ny. {$pus->nama_istri} berhasil disimpan! Skor: {$screening->total_skor}/15 ({$screening->prioritas_akhir}).");
 
         $this->redirect('/screening/priority-queue', navigate: true);
     }

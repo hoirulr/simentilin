@@ -38,7 +38,33 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(PusProfile::class, PusProfilePolicy::class);
 
+        $this->configureSecurityLogging();
+
         $this->configureDefaults();
+    }
+
+    /**
+     * Configure structured security logging for authentication and authorization events.
+     */
+    protected function configureSecurityLogging(): void
+    {
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Failed::class, function (\Illuminate\Auth\Events\Failed $event): void {
+            \Illuminate\Support\Facades\Log::warning('security.auth_failed', [
+                'ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'guard' => $event->guard,
+                'has_user' => $event->user !== null,
+                'user_id' => $event->user?->id,
+                'masked_identifier' => isset($event->credentials['email']) ? substr((string) $event->credentials['email'], 0, 3).'***' : null,
+            ]);
+        });
+
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Lockout::class, function (\Illuminate\Auth\Events\Lockout $event): void {
+            \Illuminate\Support\Facades\Log::alert('security.auth_lockout', [
+                'ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        });
     }
 
     /**

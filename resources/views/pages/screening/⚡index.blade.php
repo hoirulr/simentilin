@@ -120,8 +120,9 @@ new #[Title('Rekapitulasi Skrining | SI-MENTILIN')] class extends Component
             'pusProfile.desa',
             'user',
             'interventions.user',
-        ])->forCurrentUser()->findOrFail($screeningId);
+        ])->forCurrentUser(auth()->user())->findOrFail($screeningId);
 
+        $this->authorize('view', $this->activeScreening);
         $this->showDetailModal = true;
     }
 

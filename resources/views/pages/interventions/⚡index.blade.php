@@ -109,8 +109,9 @@ new #[Title('Realisasi Intervensi KB | SI-MENTILIN')] class extends Component
             'screening.pusProfile.kecamatan',
             'screening.pusProfile.desa',
             'user',
-        ])->forCurrentUser()->findOrFail($interventionId);
+        ])->forCurrentUser(auth()->user())->findOrFail($interventionId);
 
+        $this->authorize('view', $this->activeIntervention);
         $this->showDetailModal = true;
     }
 
