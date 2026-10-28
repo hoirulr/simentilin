@@ -384,14 +384,14 @@ new class extends Component
                             @if($selectedPus)
                                 {{ $usia_istri }} Tahun
                                 <span class="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1">
-                                    ({{ $usia_istri <= 35 ? '≤ 35 tahun' : ($usia_istri <= 39 ? '36–39 tahun' : ($usia_istri <= 44 ? '40–44 tahun' : '≥ 45 tahun')) }})
+                                    ({{ $usia_istri <= 25 ? '≤ 25 tahun' : ($usia_istri <= 39 ? '26–39 tahun' : ($usia_istri <= 44 ? '40–44 tahun' : '≥ 45 tahun')) }})
                                 </span>
                             @else
                                 <span class="text-slate-400 italic font-normal text-xs">Pilih PUS terlebih dahulu</span>
                             @endif
                         </div>
                         <div class="mt-2 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                            Aturan: ≤35 th (Skor 3) &bull; 36–39 th (Skor 2) &bull; 40–44 th (Skor 1) &bull; ≥45 th (Skor 0).
+                            Aturan: ≤25 th (Skor 3) &bull; 26–39 th (Skor 2) &bull; 40–44 th (Skor 1) &bull; ≥45 th (Skor 0).
                         </div>
                     </div>
 

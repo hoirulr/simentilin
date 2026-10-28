@@ -55,7 +55,7 @@ beforeEach(function () {
         'desa_id' => $this->desaA->id,
         'nama_istri' => 'Ny. Aisyah Wilayah A',
         'nama_suami' => 'Tn. Ahmad',
-        'tanggal_lahir_istri' => now()->subYears(26)->format('Y-m-d'),
+        'tanggal_lahir_istri' => now()->subYears(24)->format('Y-m-d'),
         'jumlah_anak_lahir_hidup' => 1,
     ]);
 
@@ -100,7 +100,7 @@ test('P0-01: screening score is strictly recalculated from server database recor
     $this->actingAs($this->petugasA);
 
     // Petugas A selects their valid PUS A
-    // In database: usia 26 -> P1 = 3 (usia <= 35), jumlah anak 1 -> P2 = 3 (anak <= 2), MUPAR = true
+    // In database: usia 24 -> P1 = 3 (usia <= 25), jumlah anak 1 -> P2 = 3 (anak <= 2), MUPAR = true
     // Attempt client state manipulation: try to override p1=0, p2=0, is_mupar=false
     Livewire::test('pages::screening.create')
         ->call('selectPus', $this->pusA->id)

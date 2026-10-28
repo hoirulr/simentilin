@@ -23,15 +23,15 @@ class ScreeningCalculatorService
      * |-------|----------------|
      * | 0     | ≥ 45 tahun     |
      * | 1     | 40–44 tahun    |
-     * | 2     | 36–39 tahun    |
-     * | 3     | ≤ 35 tahun     |
+     * | 2     | 26–39 tahun    |
+     * | 3     | ≤ 25 tahun     |
      */
     public function calculateP1(int $usiaIstri): int
     {
         return match (true) {
             $usiaIstri >= 45 => 0,
             $usiaIstri >= 40 => 1,
-            $usiaIstri >= 36 => 2,
+            $usiaIstri >= 26 => 2,
             default => 3,
         };
     }

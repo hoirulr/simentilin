@@ -666,7 +666,7 @@ new #[Title('Rekapitulasi Skrining | SI-MENTILIN')] class extends Component
                                         <td class="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">P1: Usia Istri</td>
                                         <td class="py-2.5 px-4 text-center font-bold text-[#008060]">{{ $activeScreening->p1_usia_istri }}</td>
                                         <td class="py-2.5 px-4 text-slate-600 dark:text-slate-400">
-                                            {{ $activeScreening->p1_usia_istri === 3 ? '≤ 35 tahun (Risiko reproduksi tinggi)' : ($activeScreening->p1_usia_istri === 2 ? '36–39 tahun' : ($activeScreening->p1_usia_istri === 1 ? '40–44 tahun' : '≥ 45 tahun')) }}
+                                            {{ $activeScreening->p1_usia_istri === 3 ? '≤ 25 tahun (Risiko reproduksi tinggi)' : ($activeScreening->p1_usia_istri === 2 ? '26–39 tahun' : ($activeScreening->p1_usia_istri === 1 ? '40–44 tahun' : '≥ 45 tahun')) }}
                                         </td>
                                     </tr>
                                     <tr>

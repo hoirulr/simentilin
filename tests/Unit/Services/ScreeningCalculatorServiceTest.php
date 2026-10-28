@@ -22,15 +22,16 @@ describe('calculateP1 (Usia Istri)', function () {
             ->and($this->service->calculateP1(44))->toBe(1);
     });
 
-    it('returns 2 for age 36-39', function () {
-        expect($this->service->calculateP1(36))->toBe(2)
-            ->and($this->service->calculateP1(37))->toBe(2)
+    it('returns 2 for age 26-39', function () {
+        expect($this->service->calculateP1(26))->toBe(2)
+            ->and($this->service->calculateP1(30))->toBe(2)
+            ->and($this->service->calculateP1(36))->toBe(2)
             ->and($this->service->calculateP1(39))->toBe(2);
     });
 
-    it('returns 3 for age <= 35', function () {
-        expect($this->service->calculateP1(35))->toBe(3)
-            ->and($this->service->calculateP1(25))->toBe(3)
+    it('returns 3 for age <= 25', function () {
+        expect($this->service->calculateP1(25))->toBe(3)
+            ->and($this->service->calculateP1(20))->toBe(3)
             ->and($this->service->calculateP1(18))->toBe(3);
     });
 });
@@ -169,9 +170,9 @@ describe('calculate (full pipeline)', function () {
     });
 
     it('computes Prioritas Edukasi Terjadwal for medium score + MUPAR', function () {
-        // Young wife (30y, P1=3), few children (0, P2=3), low-medium P3-P5
+        // Young wife (24y, P1=3), few children (0, P2=3), low-medium P3-P5
         $result = $this->service->calculate(
-            usiaIstri: 30,
+            usiaIstri: 24,
             jumlahAnak: 0,
             p3: 0,
             p4: 0,
@@ -203,9 +204,9 @@ describe('calculate (full pipeline)', function () {
     });
 
     it('computes Monitoring / Edukasi Rutin for low score (with MUPAR)', function () {
-        // Young wife (28y), few children (1), all low P3-P5
+        // Young wife (24y), few children (1), all low P3-P5
         $result = $this->service->calculate(
-            usiaIstri: 28,
+            usiaIstri: 24,
             jumlahAnak: 1,
             p3: 0,
             p4: 0,
