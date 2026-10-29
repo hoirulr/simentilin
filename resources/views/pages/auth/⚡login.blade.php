@@ -123,7 +123,7 @@ new #[Layout('layouts.guest')] #[Title('Masuk Sistem | SI-MENTILIN')] class exte
                             <input id="email"
                                    type="email"
                                    wire:model="email"
-                                   placeholder="nama@simentilin.bangka.go.id"
+                                   placeholder="Email Anda"
                                    class="w-full pl-11 pr-4 py-2.5 rounded-xl border text-sm text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800/80 focus:bg-white dark:focus:bg-slate-800 focus:outline-none transition {{ $errors->has('email') ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-300 dark:border-slate-700 focus:border-[#008060] focus:ring-1 focus:ring-[#008060]' }}"
                                    required
                                    autocomplete="email"

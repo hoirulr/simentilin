@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
             ['email' => 'admin@simentilin.bangka.go.id'],
             [
                 'name' => 'Admin DP2KBP3A',
-                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                'password' => \Illuminate\Support\Facades\Hash::make('jEQfkG12GNB932wIHhja'),
                 'role' => UserRole::ADMIN_DINAS,
                 'email_verified_at' => now(),
                 'remember_token' => \Illuminate\Support\Str::random(10),
@@ -38,7 +38,7 @@ class DatabaseSeeder extends Seeder
             ['email' => 'pkb.sungailiat@simentilin.bangka.go.id'],
             [
                 'name' => 'PKB Sungailiat',
-                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                'password' => \Illuminate\Support\Facades\Hash::make('jEQfkG12GNB932wIHhja'),
                 'role' => UserRole::PETUGAS_LAPANGAN,
                 'kecamatan_id' => 1,
                 'desa_id' => 1,
