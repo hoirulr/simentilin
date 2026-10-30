@@ -90,3 +90,13 @@ Homestead.yaml
 # Auth / Credentials
 # ----------------------------------------------------------------------------
 /auth.json
+
+# ----------------------------------------------------------------------------
+# Documentation & Guidebooks
+# ----------------------------------------------------------------------------
+/docs/
+docs/
+*.docx
+docx_helpers.py
+generate_master_guidebook.py
+generate_role_guidebooks.py
