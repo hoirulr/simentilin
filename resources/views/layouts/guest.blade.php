@@ -7,6 +7,12 @@
 
     <title>{{ $title ?? 'Masuk' }} | SI-MENTILIN DP2KBP3A Kab. Bangka</title>
 
+    <!-- Favicon / Application Icon -->
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
+
     <!-- Google Fonts: Instrument Sans -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet" />
@@ -14,7 +20,12 @@
     <!-- Anti-Flash Script & TailAdmin Theme Store Setup -->
     <script>
         (function() {
-            const savedTheme = localStorage.getItem('theme');
+            let savedTheme = localStorage.getItem('simentilin_theme');
+            if (!savedTheme) {
+                savedTheme = 'light';
+                localStorage.setItem('simentilin_theme', 'light');
+                localStorage.setItem('theme', 'light');
+            }
             if (savedTheme === 'dark') {
                 document.documentElement.classList.add('dark');
                 document.documentElement.style.colorScheme = 'dark';
@@ -28,7 +39,12 @@
             if (!Alpine.store('theme')) {
                 Alpine.store('theme', {
                     init() {
-                        const savedTheme = localStorage.getItem('theme');
+                        let savedTheme = localStorage.getItem('simentilin_theme');
+                        if (!savedTheme) {
+                            savedTheme = 'light';
+                            localStorage.setItem('simentilin_theme', 'light');
+                            localStorage.setItem('theme', 'light');
+                        }
                         this.theme = savedTheme === 'dark' ? 'dark' : 'light';
                         this.updateTheme();
                     },
@@ -37,6 +53,7 @@
                     set(value) {
                         value = value === 'dark' ? 'dark' : 'light';
                         this.theme = value;
+                        localStorage.setItem('simentilin_theme', value);
                         localStorage.setItem('theme', value);
                         this.updateTheme();
                         window.dispatchEvent(new CustomEvent('theme-changed', { detail: value }));
@@ -73,6 +90,7 @@
             }
             const isDark = document.documentElement.classList.toggle('dark');
             const themeVal = isDark ? 'dark' : 'light';
+            localStorage.setItem('simentilin_theme', themeVal);
             localStorage.setItem('theme', themeVal);
             document.documentElement.style.colorScheme = themeVal;
             window.dispatchEvent(new CustomEvent('theme-changed', { detail: themeVal }));
@@ -86,11 +104,11 @@
 <body class="h-full font-sans antialiased bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100 flex flex-col justify-between"
       x-data>
 
-    <!-- Top Ambient Lights -->
-    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[650px] h-[350px] bg-gradient-to-b from-[#008060]/20 to-transparent blur-3xl opacity-60"></div>
-        <div class="absolute top-1/4 -left-20 w-80 h-80 rounded-full bg-[#0B2E59]/20 blur-3xl opacity-50"></div>
-        <div class="absolute bottom-10 right-0 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl opacity-50"></div>
+    <!-- Top Ambient Lights & Soft Gradient Backdrop -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0 select-none">
+        <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[650px] h-[350px] bg-gradient-to-b from-[#008060]/15 to-transparent blur-3xl opacity-50"></div>
+        <div class="absolute top-1/4 -left-20 w-80 h-80 rounded-full bg-[#0B2E59]/15 blur-3xl opacity-40"></div>
+        <div class="absolute bottom-10 right-0 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl opacity-40"></div>
     </div>
 
     <!-- Top Guest Header Bar -->

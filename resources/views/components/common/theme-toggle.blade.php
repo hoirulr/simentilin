@@ -1,12 +1,15 @@
 <button
-    x-data="{ theme: localStorage.getItem('theme') === 'dark' ? 'dark' : 'light' }"
+    x-data="{ theme: (localStorage.getItem('simentilin_theme') || localStorage.getItem('theme')) === 'dark' ? 'dark' : 'light' }"
     x-init="
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
         }
     "
     @click="
         theme = theme === 'light' ? 'dark' : 'light';
+        localStorage.setItem('simentilin_theme', theme);
         localStorage.setItem('theme', theme);
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');

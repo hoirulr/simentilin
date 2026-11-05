@@ -58,7 +58,35 @@ new #[Layout('layouts.guest')] #[Title('Masuk Sistem | SI-MENTILIN')] class exte
 };
 ?>
 
-<div class="w-full bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden">
+<div class="relative w-full">
+    <style>
+        .mentilin-peeking-mascot {
+            display: block;
+            position: absolute;
+            right: -192px;
+            top: -20px;
+            width: 240px;
+            z-index: 30;
+            pointer-events: none;
+            user-select: none;
+            filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.18));
+            transition: all 0.3s ease;
+        }
+        @media (max-width: 1024px) {
+            .mentilin-peeking-mascot {
+                display: none;
+            }
+        }
+    </style>
+
+    <!-- Peeking Mentilin Mascot (Clinging to Card Edge as in Gemini Reference) -->
+    <div class="mentilin-peeking-mascot">
+        <img src="{{ asset('images/mentilin-peeking.png') }}"
+             alt="Maskot Mentilin DP2KBP3A"
+             style="width: 100%; height: auto; display: block;">
+    </div>
+
+    <div class="w-full bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden relative z-10">
     <div class="grid grid-cols-1 lg:grid-cols-12 min-h-[580px]">
 
         <!-- Left Visual Panel (5 cols) -->
@@ -222,4 +250,5 @@ new #[Layout('layouts.guest')] #[Title('Masuk Sistem | SI-MENTILIN')] class exte
         </div>
 
     </div>
+</div>
 </div>

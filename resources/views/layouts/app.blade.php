@@ -8,6 +8,12 @@
 
     <title>{{ $title ?? 'SI-MENTILIN' }} | DP2KBP3A Kab. Bangka</title>
 
+    <!-- Favicon / Application Icon -->
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
+
     <!-- Google Fonts: Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,7 +34,12 @@
         document.addEventListener('alpine:init', () => {
             Alpine.store('theme', {
                 init() {
-                    const savedTheme = localStorage.getItem('theme');
+                    let savedTheme = localStorage.getItem('simentilin_theme');
+                    if (!savedTheme) {
+                        savedTheme = 'light';
+                        localStorage.setItem('simentilin_theme', 'light');
+                        localStorage.setItem('theme', 'light');
+                    }
                     this.theme = savedTheme === 'dark' ? 'dark' : 'light';
                     this.updateTheme();
                 },
@@ -37,6 +48,7 @@
                 set(value) {
                     value = value === 'dark' ? 'dark' : 'light';
                     this.theme = value;
+                    localStorage.setItem('simentilin_theme', value);
                     localStorage.setItem('theme', value);
                     this.updateTheme();
                     window.dispatchEvent(new CustomEvent('theme-changed', { detail: value }));
@@ -122,7 +134,7 @@
 
         // Livewire Navigation Sync
         document.addEventListener('livewire:navigated', () => {
-            const savedTheme = localStorage.getItem('theme');
+            const savedTheme = localStorage.getItem('simentilin_theme') || localStorage.getItem('theme');
             if (savedTheme === 'dark') {
                 document.documentElement.classList.add('dark');
             } else {
@@ -145,7 +157,12 @@
                 document.documentElement.setAttribute('lang', savedLocale);
             }
 
-            const savedTheme = localStorage.getItem('theme');
+            let savedTheme = localStorage.getItem('simentilin_theme');
+            if (!savedTheme) {
+                savedTheme = 'light';
+                localStorage.setItem('simentilin_theme', 'light');
+                localStorage.setItem('theme', 'light');
+            }
             const isDark = savedTheme === 'dark';
             if (isDark) {
                 document.documentElement.classList.add('dark');
@@ -160,7 +177,14 @@
     @livewireStyles
 </head>
 
-<body class="bg-gray-50 dark:bg-gray-900 font-sans text-gray-800 dark:text-gray-200 antialiased">
+<body class="bg-gray-50 dark:bg-gray-900 font-sans text-gray-800 dark:text-gray-200 antialiased relative">
+
+    <!-- Fixed Background Transparent Mentilin Mascot Graphic -->
+    <div class="fixed -bottom-16 -right-16 pointer-events-none select-none z-0 overflow-hidden opacity-[0.045] dark:opacity-[0.035] transition-opacity">
+        <img src="{{ asset('images/mentilin-transparent.png') }}"
+             alt=""
+             class="w-72 sm:w-96 md:w-[480px] h-auto object-contain">
+    </div>
 
     <div class="min-h-screen xl:flex sidebar-expanded" x-data :class="{ 'sidebar-expanded': $store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen }">
         @include('layouts.backdrop')

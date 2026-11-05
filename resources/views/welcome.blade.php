@@ -2,6 +2,10 @@
 
     <!-- Welcome Hero Banner (TailAdmin Light Mode Hero Card) -->
     <div class="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-800 p-6 sm:p-8 text-slate-800 dark:text-slate-100 shadow-sm border border-slate-200 dark:border-slate-700 mb-8">
+        <!-- Transparent Mentilin Watermark in Hero Banner -->
+        <div class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 w-80 h-80 pointer-events-none select-none opacity-[0.07] dark:opacity-[0.05]">
+            <img src="{{ asset('images/mentilin-transparent.png') }}" alt="" class="w-full h-full object-contain">
+        </div>
         <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div class="max-w-2xl">
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-[#008060] dark:text-emerald-400 text-xs font-semibold mb-3 border border-emerald-200 dark:border-emerald-800/60">
