@@ -381,8 +381,8 @@ new class extends Component
 
         // Filter MUPAR in-memory if requested (or pre-filter)
         if ($this->filter_mupar !== '') {
-            // Re-query with date condition for MUPAR (age <= 35 means born on or after today - 35 years)
-            $cutoffDate = now()->subYears(35)->startOfDay()->format('Y-m-d');
+            // Re-query with date condition for MUPAR (age <= 25 means born on or after today - 25 years)
+            $cutoffDate = now()->subYears(25)->startOfDay()->format('Y-m-d');
             $muparQuery = clone $query;
             if ($this->filter_mupar === 'mupar') {
                 $muparQuery->where('tanggal_lahir_istri', '>=', $cutoffDate)
@@ -537,7 +537,7 @@ new class extends Component
             </div>
             <div class="mt-3 flex items-center gap-1.5 text-xs font-medium text-purple-700 dark:text-purple-300">
                 <span class="inline-block w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
-                <span>Usia ≤ 35 th &amp; Anak ≤ 2 (Prioritas Khusus)</span>
+                <span>Usia ≤ 25 th &amp; Anak ≤ 2 (Prioritas Khusus)</span>
             </div>
         </div>
 

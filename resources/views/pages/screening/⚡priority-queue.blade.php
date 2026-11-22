@@ -631,7 +631,7 @@ new class extends Component
                             @endif
                         </div>
                         <span class="text-[11px] text-slate-500">
-                            (Usia ≤ 35 th &amp; Anak ≤ 2)
+                            (Usia ≤ 25 th &amp; Anak ≤ 2)
                         </span>
                     </div>
 

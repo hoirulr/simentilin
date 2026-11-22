@@ -428,7 +428,7 @@ new class extends Component
                     </svg>
                     <div class="text-xs text-purple-900 dark:text-purple-300 leading-relaxed">
                         <strong class="font-bold">Ketentuan MUPAR (Muda Paritas Rendah):</strong>
-                        MUPAR aktif jika Usia Istri ≤ 35 tahun <em>DAN</em> Anak Hidup ≤ 2.
+                        MUPAR aktif jika Usia Istri ≤ 25 tahun <em>DAN</em> Anak Hidup ≤ 2.
                         <span class="font-bold text-purple-950 dark:text-purple-200 underline">MUPAR adalah penanda prioritas intervensi dan BUKAN parameter penambah angka skor</span> (Total skor murni P1 s/d P5, rentang 0–15).
                     </div>
                 </div>
@@ -686,7 +686,7 @@ new class extends Component
                         @endif
                     </div>
                     <p class="mt-1 text-[11px] leading-tight opacity-80">
-                        {{ $computed_is_mupar ? 'Muda Paritas Rendah: Berstatus sasaran intervensi edukasi prioritas!' : 'Kriteria MUPAR tidak terpenuhi (Usia > 35 th atau Anak > 2).' }}
+                        {{ $computed_is_mupar ? 'Muda Paritas Rendah: Berstatus sasaran intervensi edukasi prioritas!' : 'Kriteria MUPAR tidak terpenuhi (Usia > 25 th atau Anak > 2).' }}
                     </p>
                 </div>
 

@@ -111,14 +111,14 @@ describe('determineCategory', function () {
 // ──── MUPAR Determination ─────────────────────────────────
 
 describe('determineMupar', function () {
-    it('returns true when wife <= 35 AND children <= 2', function () {
+    it('returns true when wife <= 25 AND children <= 2', function () {
         expect($this->service->determineMupar(25, 0))->toBeTrue()
-            ->and($this->service->determineMupar(35, 2))->toBeTrue()
-            ->and($this->service->determineMupar(30, 1))->toBeTrue();
+            ->and($this->service->determineMupar(25, 2))->toBeTrue()
+            ->and($this->service->determineMupar(20, 1))->toBeTrue();
     });
 
-    it('returns false when wife > 35', function () {
-        expect($this->service->determineMupar(36, 0))->toBeFalse()
+    it('returns false when wife > 25', function () {
+        expect($this->service->determineMupar(26, 0))->toBeFalse()
             ->and($this->service->determineMupar(40, 1))->toBeFalse();
     });
 
@@ -317,15 +317,15 @@ describe('boundary values', function () {
             ->and($result['kategori'])->toBe(PriorityCategory::TINGGI);
     });
 
-    it('handles MUPAR boundary: age 35 with 2 children (edge case: true)', function () {
-        expect($this->service->determineMupar(35, 2))->toBeTrue();
+    it('handles MUPAR boundary: age 25 with 2 children (edge case: true)', function () {
+        expect($this->service->determineMupar(25, 2))->toBeTrue();
     });
 
-    it('handles MUPAR boundary: age 36 with 2 children (edge case: false)', function () {
-        expect($this->service->determineMupar(36, 2))->toBeFalse();
+    it('handles MUPAR boundary: age 26 with 2 children (edge case: false)', function () {
+        expect($this->service->determineMupar(26, 2))->toBeFalse();
     });
 
-    it('handles MUPAR boundary: age 35 with 3 children (edge case: false)', function () {
-        expect($this->service->determineMupar(35, 3))->toBeFalse();
+    it('handles MUPAR boundary: age 25 with 3 children (edge case: false)', function () {
+        expect($this->service->determineMupar(25, 3))->toBeFalse();
     });
 });

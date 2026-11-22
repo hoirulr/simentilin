@@ -318,7 +318,7 @@ new #[Title('Rekapitulasi Skrining | SI-MENTILIN')] class extends Component
             </div>
             <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-3 flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-                <span>Muda Paritas Rendah (≤ 35 th, ≤ 2 anak)</span>
+                <span>Muda Paritas Rendah (≤ 25 th, ≤ 2 anak)</span>
             </p>
         </div>
 
@@ -377,7 +377,7 @@ new #[Title('Rekapitulasi Skrining | SI-MENTILIN')] class extends Component
                 <select wire:model.live="filter_mupar"
                         class="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-[#008060] focus:border-transparent transition">
                     <option value="">Semua Status MUPAR</option>
-                    <option value="yes">Hanya MUPAR (≤ 35 th, ≤ 2 anak)</option>
+                    <option value="yes">Hanya MUPAR (≤ 25 th, ≤ 2 anak)</option>
                     <option value="no">Non-MUPAR</option>
                 </select>
             </div>

@@ -37,7 +37,7 @@ Setiap pengguna dan pengembang aplikasi wajib memahami 3 prinsip inti kalkulasi 
 graph TD
     A[Data PUS: Usia Istri & Paritas] --> B[P1: Usia Istri Skor 0-3]
     A --> C[P2: Paritas Anak Skor 0-3]
-    A --> D{Pemeriksaan Kriteria MUPAR<br>Istri <= 35 th & Anak <= 2}
+    A --> D{Pemeriksaan Kriteria MUPAR<br>Istri <= 25 th & Anak <= 2}
     D -- Ya --> E[Flag MUPAR = True<br>TIDAK MENAMBAH SKOR]
     D -- Tidak --> F[Flag MUPAR = False]
     

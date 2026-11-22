@@ -284,7 +284,7 @@ new #[Title('Dashboard | SI-MENTILIN')] class extends Component
                             </span>
                             <span class="text-2xl font-black text-red-700 dark:text-red-400">{{ number_format($merahMupar) }}</span>
                         </div>
-                        <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-2">Prioritas Utama (#1) — Usia ≤35 thn &amp; Anak ≤2</p>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-2">Prioritas Utama (#1) — Usia ≤25 thn &amp; Anak ≤2</p>
                         <div class="grid grid-cols-2 gap-2">
                             <div class="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-2.5 text-center border border-emerald-200 dark:border-emerald-800/40">
                                 <p class="text-lg font-black text-emerald-700 dark:text-emerald-400">{{ $merahMuparSudah }}</p>

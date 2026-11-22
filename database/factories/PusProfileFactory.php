@@ -36,18 +36,18 @@ class PusProfileFactory extends Factory
     }
 
     /**
-     * MUPAR state: young wife (<= 35 years) and low parity (<= 2 children).
+     * MUPAR state: young wife (<= 25 years) and low parity (<= 2 children).
      */
     public function mupar(): static
     {
         return $this->state(fn (array $attributes) => [
-            'tanggal_lahir_istri' => now()->subYears(26)->format('Y-m-d'),
+            'tanggal_lahir_istri' => now()->subYears(25)->format('Y-m-d'),
             'jumlah_anak_lahir_hidup' => 1,
         ]);
     }
 
     /**
-     * Non-MUPAR state: older wife (> 35 years) or many children (> 2).
+     * Non-MUPAR state: older wife (> 25 years) or many children (> 2).
      */
     public function nonMupar(): static
     {

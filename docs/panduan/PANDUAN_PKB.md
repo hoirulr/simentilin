@@ -43,7 +43,7 @@ Aplikasi SI-MENTILIN dirancang dengan standar logika bisnis terukur:
    - **Sedang:** Total skor 7 – 10
    - **Tinggi:** Total skor 11 – 15
 3. **MUPAR (Muda Paritas Rendah) BUKAN Penambah Skor:**
-   - MUPAR adalah indikator penanda khusus (Istri usia $\le$ 35 tahun dengan anak lahir hidup $\le$ 2).
+   - MUPAR adalah indikator penanda khusus (Istri usia $\le$ 25 tahun dengan anak lahir hidup $\le$ 2).
    - MUPAR bertindak sebagai *multiplier strategis* yang memprioritaskan antrean intervensi:
      - **Skor 11–15 + MUPAR** $\rightarrow$ **Prioritas Utama (#1)** (Wajib kunjungan segera)
      - **Skor 11–15 + Non-MUPAR** $\rightarrow$ **Prioritas Tinggi (#2)**
@@ -142,7 +142,7 @@ Modul Skrining adalah jantung dari inovasi aplikasi SI-MENTILIN. Petugas tidak p
 | **P4** | Kebutuhan / Rencana Reproduksi | Inputan PKB saat skrining | 0 – 3 |
 | **P5** | Risiko Kehamilan Tidak Direncanakan (KTD) | Inputan PKB saat skrining | 0 – 3 |
 
-> **Perhatian:** MUPAR (*Istri $\le$ 35 th dan Anak Hidup $\le$ 2*) berstatus **Flag Boolean (Ya / Tidak)** dan **TIDAK PERNAH MENAMBAH ANGKA SKOR**.
+> **Perhatian:** MUPAR (*Istri $\le$ 25 th dan Anak Hidup $\le$ 2*) berstatus **Flag Boolean (Ya / Tidak)** dan **TIDAK PERNAH MENAMBAH ANGKA SKOR**.
 
 ### Proses Pengisian Formulir Skrining
 

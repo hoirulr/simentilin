@@ -96,12 +96,12 @@ class ScreeningCalculatorService
     /**
      * Determine MUPAR (Muda Paritas Rendah) status.
      *
-     * A PUS is considered MUPAR when the wife is young (≤ 35 years)
+     * A PUS is considered MUPAR when the wife is young (≤ 25 years)
      * with low parity (0-2 living children).
      */
     public function determineMupar(int $usiaIstri, int $jumlahAnak): bool
     {
-        return $usiaIstri <= 35 && $jumlahAnak <= 2;
+        return $usiaIstri <= 25 && $jumlahAnak <= 2;
     }
 
     /**

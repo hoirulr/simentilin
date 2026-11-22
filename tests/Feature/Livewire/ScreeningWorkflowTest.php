@@ -52,24 +52,24 @@ test('pus index component renders and can register new PUS with MUPAR detection'
 test('screening calculator calculates P1 and P2 automatically from PUS profile', function () {
     $this->actingAs($this->petugas);
 
-    // Create a MUPAR PUS: 28 years old (P1 = 2 under 26-39 range), 1 child (P2 = 3)
+    // Create a MUPAR PUS: 25 years old (P1 = 3 under <=25 range), 1 child (P2 = 3)
     $pus = PusProfile::factory()->create([
         'user_id' => $this->petugas->id,
         'kecamatan_id' => $this->kecamatan->id,
         'desa_id' => $this->desa->id,
         'nama_istri' => 'Dewi Sartika',
-        'tanggal_lahir_istri' => now()->subYears(28)->format('Y-m-d'),
+        'tanggal_lahir_istri' => now()->subYears(25)->format('Y-m-d'),
         'jumlah_anak_lahir_hidup' => 1,
     ]);
 
     Livewire::test('pages::screening.create', ['pus_id' => $pus->id])
         ->assertOk()
         ->assertSet('pus_id', $pus->id)
-        ->assertSet('usia_istri', 28)
+        ->assertSet('usia_istri', 25)
         ->assertSet('jumlah_anak', 1)
-        ->assertSet('p1', 2) // Auto calculated: 26-39 th → 2
+        ->assertSet('p1', 3) // Auto calculated: age <=25 th ? 3
         ->assertSet('p2', 3) // Auto calculated: 0-2 anak → 3
-        ->assertSet('is_mupar', true) // Auto determined: 28y <= 35 && 1 child <= 2
+        ->assertSet('is_mupar', true) // Auto determined: 25y <= 25 && 1 child <= 2
         ->assertSee('Dewi Sartika')
         ->assertSee('PUS MUPAR');
 });
